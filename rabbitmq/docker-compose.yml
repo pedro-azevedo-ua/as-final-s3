@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_broker
+    ports:
+      - "5672:5672"  # AMQP port
+      - "15672:15672" # Management UI port
+    volumes:
+       - rabbitmq_data:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_NODENAME: rabbit@localhost # Recommended for stability
+
+volumes:
+  rabbitmq_data:
