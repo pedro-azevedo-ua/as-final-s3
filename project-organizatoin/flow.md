@@ -81,3 +81,7 @@ volumes:
 - run ContentsRUs.Eventing.Publisher
 - check RabbitMQ in the browser if has the messages
 
+### 1.4 | JS Consumer PoC: use amqplib in Node.js to consume & print JSON from the queue
+
+- created a js app in consumer-js
+- run with npm start and is waiting for messages
