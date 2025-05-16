@@ -1,49 +1,64 @@
-﻿using System;
+﻿
+using RabbitMQ.Client;
 using System.Text;
 using System.Threading.Channels;
 using Newtonsoft.Json;
-using RabbitMQ.Client;
 
 namespace ContentsRUs.Eventing.Publisher
 {
-    public class PiranhaEventPublisher : IDisposable
+    public class PiranhaEventPublisher : IAsyncDisposable
     {
-        private readonly string _connectionString;
+        private readonly ConnectionFactory _factory;
         private readonly string _exchange = "piranha.events";
+        private readonly string _queueName = "piranha.events.queue";
 
-        public PiranhaEventPublisher(string connectionString)
+        public PiranhaEventPublisher(string hostName, int port, string user, string pass)
         {
-            _connectionString = connectionString;
+            _factory = new ConnectionFactory();
+            // "guest"/"guest" by default, limited to localhost connections
+            _factory.UserName = user;
+            _factory.Password = pass;
+            _factory.VirtualHost = "/";
+            _factory.HostName = hostName;
         }
 
-        public async Task PublishAsync(object @event, string routingKey = "")
+        public async Task PublishAsync<T>(T @event, string routingKey = "content.published")
         {
-            var factory = new RabbitMQ.Client.ConnectionFactory
-            {
-                HostName = "localhost",
-                Port = 5672,
-            };
+            // 1) Acquire connection & channel asynchronously
+            IConnection conn = await _factory.CreateConnectionAsync();
+            IChannel channel = await conn.CreateChannelAsync();
 
-            // Await the connection task to get the IConnection instance
-            using var connection = await factory.CreateConnectionAsync();
-            using var channel = await connection.CreateChannelAsync(); // Fixed: Use CreateChannelAsync instead of CreateModel
+            await channel.ExchangeDeclareAsync(_exchange, ExchangeType.Direct);
+            await channel.QueueDeclareAsync(_queueName, false, false, false, null);
+            await channel.QueueBindAsync(_queueName, _exchange, routingKey, null);
 
-            await channel.ExchangeDeclareAsync(exchange: _exchange, type: ExchangeType.Direct, durable: true);
+            string jsonData = JsonConvert.SerializeObject(@event, Formatting.Indented,
+                 new JsonSerializerSettings
+                 {
+                     ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                 });
+            byte[] messageBodyBytes = Encoding.UTF8.GetBytes(jsonData);
+            var props = new BasicProperties();
+            props.ContentType = "application/json";
+            props.DeliveryMode = DeliveryModes.Persistent;
+            props.MessageId = Guid.NewGuid().ToString();
+            props.Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
-            var message = JsonConvert.SerializeObject(@event);
-            var body = Encoding.UTF8.GetBytes(message);
-            await channel.QueueDeclareAsync(queue: "hello", durable: false, exclusive: false, autoDelete: false,
-    arguments: null);
+            await channel.BasicPublishAsync(_exchange, routingKey,
+                mandatory: true, basicProperties: props, body: messageBodyBytes);
 
-            await channel.BasicPublishAsync(exchange: _exchange, routingKey: routingKey, body: body);
-            Console.WriteLine($" [x] Sent {message}");
+            Console.WriteLine($"Published JSON message: {jsonData.Substring(0, Math.Min(100, jsonData.Length))}...");
 
-            Console.WriteLine($"[x] Published event to {_exchange} with body '{body}'");
+
+            await channel.CloseAsync();
+            await conn.CloseAsync();
+            await channel.DisposeAsync();
+            await conn.DisposeAsync();
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
-            // No resources to dispose because we're using short-lived connections
+            await Task.CompletedTask;
         }
     }
 }

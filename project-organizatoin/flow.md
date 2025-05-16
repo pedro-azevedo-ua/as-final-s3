@@ -78,4 +78,6 @@ volumes:
   ```
 - Create `PiranhaEventPublisher.cs`
 - Create `Program.cs`
-- TODO expand more in those functions. This is not really working
+- run ContentsRUs.Eventing.Publisher
+- check RabbitMQ in the browser if has the messages
+
