@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.28729.10
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.36105.23 d17.13
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "core", "core", "{42A64587-89B5-48F2-84D4-85B97F7847F1}"
 EndProject
@@ -19,10 +19,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Piranha.Tests", "test\Piran
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".global", ".global", "{88054E40-5547-4EA5-B75E-D446E8E5A021}"
 	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+		Directory.Build.targets = Directory.Build.targets
 		LICENSE = LICENSE
 		README.md = README.md
-		Directory.Build.targets = Directory.Build.targets
-		Directory.Build.props = Directory.Build.props
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Piranha.Local.FileStorage", "core\Piranha.Local.FileStorage\Piranha.Local.FileStorage.csproj", "{4587BC7F-94D4-4DF5-B46E-4CC0E462FF03}"
@@ -76,6 +76,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ContentsRUs.Eventing.Publisher", "src\ContentsRUs.Eventing.Publisher\ContentsRUs.Eventing.Publisher.csproj", "{6A1061D9-BB23-4CB5-A66D-8F6D46F9843B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ContentsRUs.Eventing.Listener", "src\ContentsRUs.Eventing.Listener\ContentsRUs.Eventing.Listener.csproj", "{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -411,6 +413,18 @@ Global
 		{6A1061D9-BB23-4CB5-A66D-8F6D46F9843B}.Release|x64.Build.0 = Release|Any CPU
 		{6A1061D9-BB23-4CB5-A66D-8F6D46F9843B}.Release|x86.ActiveCfg = Release|Any CPU
 		{6A1061D9-BB23-4CB5-A66D-8F6D46F9843B}.Release|x86.Build.0 = Release|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Debug|x64.Build.0 = Debug|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Debug|x86.Build.0 = Debug|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Release|x64.ActiveCfg = Release|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Release|x64.Build.0 = Release|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Release|x86.ActiveCfg = Release|Any CPU
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -443,6 +457,7 @@ Global
 		{A88D6D8D-725E-494F-91CD-440D87BFF21B} = {42A64587-89B5-48F2-84D4-85B97F7847F1}
 		{8AFA0D7F-BDD9-41E0-BC69-B2B762516F33} = {42A64587-89B5-48F2-84D4-85B97F7847F1}
 		{6A1061D9-BB23-4CB5-A66D-8F6D46F9843B} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{B245E5D1-2CD0-4927-A2E1-CDF7EDD6A3F8} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CF88AA05-D127-4707-8214-A230F0DA569B}

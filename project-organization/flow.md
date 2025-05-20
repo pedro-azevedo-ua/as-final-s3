@@ -85,3 +85,52 @@ volumes:
 
 - created a js app in consumer-js
 - run with npm start and is waiting for messages
+
+### 2.1 Build `ExternalEventListenerService` (IHostedService)
+
+- Create new project to the solution:
+
+  * Right-click on the Solution in Solution Explorer.
+  * Select "Add" -> "New Project...".
+  * Search for "Class Library".
+  * Click "Next".
+  * **Project Name:** `ContentsRUs.Eventing.Listener`
+  * **Location:** src/.
+  * Click "Next".
+  * Select the framework (e.g., .NET 8.0).
+  * Click "Create".
+  * ```
+    dotnet sln add ContentsRUs.Eventing.Listener/ContentsRUs.Eventing.Listener.csproj
+    ```
+  - Create `ExternalEventListenerService.cs`
+    - this will listen for messages and performe actions depending on the message from external sources, handles messages with actions depending on the routing key.
+  - In the example/MvcWeb:
+    - appsettings.json:  ```   "RabbitMQ": {
+        "HostName": "localhost",
+        "Port": 5672,
+        "UserName": "user",
+        "Password": "password",
+        "Exchange": "piranha.external.events",
+        "Queue": "piranha.external.queue",
+        "RoutingKey": "content.#"
+    },```
+
+    - In the Program.cs: 
+     ``` 
+     builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(
+    sp.GetRequiredService<ILogger<ExternalEventListenerService>>(),
+    builder.Configuration["RabbitMQ:HostName"] ?? "localhost",
+    int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
+    builder.Configuration["RabbitMQ:UserName"] ?? "user",
+    builder.Configuration["RabbitMQ:Password"] ?? "password",
+    routingKey: "content.#"
+    ));
+    ```
+  - created the sender.js to send messages to the broker
+  - To see it working:
+    - RabbitMQ running in docker
+    - Run MvcWeb examples:
+      -  ``` dotnet run --framework net8.0 ``` 
+    - Run producer
+      - ``` npm run startProducer ```
+      - this will send a message that will trigger some logs in the piranha

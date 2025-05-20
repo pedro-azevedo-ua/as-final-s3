@@ -16,6 +16,8 @@
     <ProjectReference Include="..\..\core\Piranha.Manager.TinyMCE\Piranha.Manager.TinyMCE.csproj" />
     <ProjectReference Include="..\..\data\Piranha.Data.EF.SQLite\Piranha.Data.EF.SQLite.csproj" />
     <ProjectReference Include="..\..\identity\Piranha.AspNetCore.Identity.SQLite\Piranha.AspNetCore.Identity.SQLite.csproj" />
+    <ProjectReference Include="..\..\src\ContentsRUs.Eventing.Listener\ContentsRUs.Eventing.Listener.csproj" />
+    <ProjectReference Include="..\..\src\ContentsRUs.Eventing.Publisher\ContentsRUs.Eventing.Publisher.csproj" />
   </ItemGroup>
 
 </Project>

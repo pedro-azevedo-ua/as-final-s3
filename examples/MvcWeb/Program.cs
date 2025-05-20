@@ -4,6 +4,8 @@ using Piranha.AspNetCore.Identity.SQLite;
 using Piranha.AttributeBuilder;
 using Piranha.Data.EF.SQLite;
 using Piranha.Manager.Editor;
+using ContentsRUs.Eventing.Listener;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +48,15 @@ builder.AddPiranha(options =>
     options.LoginUrl = "login";
      */
 });
+
+builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(
+    sp.GetRequiredService<ILogger<ExternalEventListenerService>>(),
+    builder.Configuration["RabbitMQ:HostName"] ?? "localhost",
+    int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
+    builder.Configuration["RabbitMQ:UserName"] ?? "user",
+    builder.Configuration["RabbitMQ:Password"] ?? "password",
+    routingKey: "content.#"
+));
 
 var app = builder.Build();
 

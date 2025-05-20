@@ -4,7 +4,8 @@
   "description": "Consumer for Piranha CMS events from RabbitMQ",
   "main": "consumer.js",
   "scripts": {
-    "start": "node consumer.js"
+    "startConsuming": "node consumer.js",
+    "startProducer": "node sender.js"
   },
   "dependencies": {
     "amqplib": "^0.10.8"
