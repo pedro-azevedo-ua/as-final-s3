@@ -17,6 +17,7 @@
 
 <ItemGroup>
 	<ProjectReference Include="..\..\core\Piranha\Piranha.csproj" />
+	<ProjectReference Include="..\ContentsRUs.Eventing.Models\ContentsRUs.Eventing.Models.csproj" />
 </ItemGroup>
 
 </Project>

@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using ContentsRUs.Eventing.Models;
 
 namespace ContentsRUs.Eventing.Listener
 {
@@ -110,16 +111,33 @@ namespace ContentsRUs.Eventing.Listener
                 try
                 {
                     // Parse and handle the message as JSON
-                    var messageData = JsonConvert.DeserializeObject<dynamic>(message);
+                    var domainEvent = JsonConvert.DeserializeObject<DomainEvent<dynamic>>(message);
+                    
+                    if (domainEvent != null)
+                    {
+                        _logger.LogInformation("Received DomainEvent:");
+                        _logger.LogInformation("  EventId: {EventId}", domainEvent.EventId);
+                        _logger.LogInformation("  ModelName: {ModelName}", domainEvent.ModelName);
+                        _logger.LogInformation("  Action: {Action}", domainEvent.Action);
+                        _logger.LogInformation("  Timestamp: {Timestamp}", domainEvent.Timestamp);
 
-                    // Process based on routing key
-                    await ProcessMessageAsync(messageData, routingKey);
+                        if (domainEvent.Payload != null)
+                        {
+                            _logger.LogInformation("  Title: {Title}", domainEvent.Payload.Title);
+                            _logger.LogInformation("  Description: {Description}", domainEvent.Payload.Description);
+                            _logger.LogInformation("  Body: {Body}", domainEvent.Payload.Body);
+                        }
 
-                    // Acknowledge successful processing
-                    await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+                        // Process based on routing key
+                        await ProcessDomainEventAsync(domainEvent);
 
-                    _logger.LogInformation("Successfully processed message with routing key: {RoutingKey}", routingKey);
-                    Console.WriteLine($"[ExternalEventListenerService] Successfully processed message with routing key: {routingKey}");
+                        // Acknowledge successful processing
+                        await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+
+                        _logger.LogInformation("Successfully processed message with routing key: {RoutingKey}", routingKey);
+                        Console.WriteLine($"[ExternalEventListenerService] Successfully processed message with routing key: {routingKey}");
+                    }
+
                 }
                 catch (JsonException ex)
                 {
@@ -144,22 +162,30 @@ namespace ContentsRUs.Eventing.Listener
             }
         }
 
+        private async Task ProcessDomainEventAsync(DomainEvent<dynamic> domainEvent)
+        {
+        // Constrói a routing key com base nos campos
+        var routingKey = $"content.{domainEvent.Action.ToLowerInvariant()}";
+
+        await ProcessMessageAsync(domainEvent, routingKey);
+        }
+
         // In ExternalEventListenerService.cs
-        private async Task ProcessMessageAsync(dynamic messageData, string routingKey)
+        private async Task ProcessMessageAsync(dynamic domainEvent, string routingKey)
         {
             switch (routingKey)
             {
                 case "content.create":
-                    await CreateContentAsync(messageData);
+                    await CreateContentAsync(domainEvent);
                     break;
 
-                //case "content.update":
-                //    await UpdateContentAsync(messageData);
-                //    break;
+                case "content.update":
+                    await UpdateContentAsync(domainEvent);
+                    break;
 
-                //case "content.delete":
-                //    await DeleteContentAsync(messageData);
-                //    break;
+                case "content.delete":
+                    await DeleteContentAsync(domainEvent);
+                    break;
 
                 default:
                     _logger.LogWarning("Unknown routing key: {RoutingKey}", routingKey);
@@ -172,7 +198,7 @@ namespace ContentsRUs.Eventing.Listener
             // Example implementation:
             // 1. Access Piranha API (inject it in constructor)
             // 2. Create content from data
-            string title = data.title;
+            string title = data.Payload.Title;
             _logger.LogInformation("Creating content: {Title}", title);
 
             //For debuging console
@@ -188,6 +214,37 @@ namespace ContentsRUs.Eventing.Listener
             await _api.Pages.SaveAsync(page);
             */
         }
+
+        private async Task UpdateContentAsync(dynamic data)
+        {
+            string title = data.Payload.Title;
+            _logger.LogInformation("Updating content: {Title}", title);
+            Console.WriteLine($"[ExternalEventListenerService] Updating content: {title}");
+
+            // Exemplo de código com Piranha API (se for injetada no construtor)
+            /*
+            var page = await _api.Pages.GetByIdAsync(data.id);
+            if (page != null)
+            {
+                page.Title = data.title;
+                page.Body = data.body;
+                await _api.Pages.SaveAsync(page);
+            }
+            */
+        }
+
+        private async Task DeleteContentAsync(dynamic data)
+        {
+            string id = data.EventId.ToString();
+            _logger.LogInformation("Deleting content with ID: {Id}", id);
+            Console.WriteLine($"[ExternalEventListenerService] Deleting content with ID: {id}");
+
+            // Exemplo com Piranha API
+            /*
+            await _api.Pages.DeleteAsync(Guid.Parse(id));
+            */
+        }
+
 
         // Implement other handlers similarly
 
