@@ -1,8 +1,8 @@
-﻿
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
 using System.Text;
-using System.Threading.Channels;
 using Newtonsoft.Json;
+using Serilog;
+using Serilog.Context;
 
 namespace ContentsRUs.Eventing.Publisher
 {
@@ -14,46 +14,75 @@ namespace ContentsRUs.Eventing.Publisher
 
         public PiranhaEventPublisher(string hostName, int port, string user, string pass)
         {
-            _factory = new ConnectionFactory();
-            // "guest"/"guest" by default, limited to localhost connections
-            _factory.UserName = user;
-            _factory.Password = pass;
-            _factory.VirtualHost = "/";
-            _factory.HostName = hostName;
+            _factory = new ConnectionFactory
+            {
+                UserName = user,
+                Password = pass,
+                VirtualHost = "/",
+                HostName = hostName
+            };
         }
 
         public async Task PublishAsync<T>(T @event, string routingKey = "content.published")
         {
-            // 1) Acquire connection & channel asynchronously
-            IConnection conn = await _factory.CreateConnectionAsync();
-            IChannel channel = await conn.CreateChannelAsync();
+            var traceId = Guid.NewGuid().ToString();
 
-            await channel.ExchangeDeclareAsync(_exchange, ExchangeType.Direct);
-            await channel.QueueDeclareAsync(_queueName, false, false, false, null);
-            await channel.QueueBindAsync(_queueName, _exchange, routingKey, null);
+            using (LogContext.PushProperty("TraceId", traceId))
+            {
+                try
+                {
+                    Log.Information("Establishing RabbitMQ connection");
 
-            string jsonData = JsonConvert.SerializeObject(@event, Formatting.Indented,
-                 new JsonSerializerSettings
-                 {
-                     ReferenceLoopHandling = ReferenceLoopHandling.Ignore
-                 });
-            byte[] messageBodyBytes = Encoding.UTF8.GetBytes(jsonData);
-            var props = new BasicProperties();
-            props.ContentType = "application/json";
-            props.DeliveryMode = DeliveryModes.Persistent;
-            props.MessageId = Guid.NewGuid().ToString();
-            props.Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    IConnection conn = await _factory.CreateConnectionAsync();
+                    IChannel channel = await conn.CreateChannelAsync();
 
-            await channel.BasicPublishAsync(_exchange, routingKey,
-                mandatory: true, basicProperties: props, body: messageBodyBytes);
+                    await channel.ExchangeDeclareAsync(_exchange, ExchangeType.Direct);
+                    await channel.QueueDeclareAsync(_queueName, false, false, false, null);
+                    await channel.QueueBindAsync(_queueName, _exchange, routingKey, null);
 
-            Console.WriteLine($"Published JSON message: {jsonData.Substring(0, Math.Min(100, jsonData.Length))}...");
+                    string jsonData = JsonConvert.SerializeObject(@event, Formatting.Indented,
+                        new JsonSerializerSettings
+                        {
+                            ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                        });
+
+                    byte[] messageBodyBytes = Encoding.UTF8.GetBytes(jsonData);
+                    int payloadSize = messageBodyBytes.Length;
+                    Log.Information(
+                        "Publishing event | Exchange: {Exchange} | RoutingKey: {RoutingKey} | PayloadSize: {PayloadSize} bytes | TraceId: {TraceId}",
+                        _exchange,
+                        routingKey,
+                        payloadSize,
+                        traceId
+                    );
 
 
-            await channel.CloseAsync();
-            await conn.CloseAsync();
-            await channel.DisposeAsync();
-            await conn.DisposeAsync();
+                    var props = new BasicProperties
+                    {
+                        ContentType = "application/json",
+                        DeliveryMode = DeliveryModes.Persistent,
+                        MessageId = Guid.NewGuid().ToString(),
+                        Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+                    };
+
+                    await channel.BasicPublishAsync(_exchange, routingKey, mandatory: true,
+                        basicProperties: props, body: messageBodyBytes);
+
+                    Log.Information("Event published | RoutingKey: {RoutingKey} | PayloadPreview: {Preview}",
+                        routingKey,
+                        jsonData.Substring(0, Math.Min(100, jsonData.Length)));
+
+                    await channel.CloseAsync();
+                    await conn.CloseAsync();
+                    await channel.DisposeAsync();
+                    await conn.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to publish event | RoutingKey: {RoutingKey}", routingKey);
+                    throw;
+                }
+            }
         }
 
         public async ValueTask DisposeAsync()

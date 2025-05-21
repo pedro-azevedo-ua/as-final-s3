@@ -1,4 +1,7 @@
 ﻿using RabbitMQ.Client;
+using Serilog;
+using Serilog.Context;
+using Serilog.Events;
 using System;
 using System.Threading.Tasks;
 
@@ -8,27 +11,34 @@ namespace ContentsRUs.Eventing.Publisher
     {
         static async Task Main(string[] args)
         {
-            Console.WriteLine("Piranha Event Publisher Demo");
-            Console.WriteLine("============================");
+            // Setup Serilog
+            Log.Logger = new LoggerConfiguration()
+                .Enrich.FromLogContext()
+                .Enrich.WithEnvironmentName()
+                .Enrich.WithThreadId()
+                .Enrich.WithProcessId()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                .MinimumLevel.Information()
+                .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter())
+                .CreateLogger();
+
+            Log.Information("Piranha Event Publisher Starting");
 
             try
             {
-                // Connection parameters matching your Docker Compose configuration
                 string hostName = "localhost";
                 int port = 5672;
-                string username = "user";           // From RABBITMQ_DEFAULT_USER
-                string password = "password";       // From RABBITMQ_DEFAULT_PASS
+                string username = "user";
+                string password = "password";
 
-                Console.WriteLine($"Connecting to RabbitMQ at {hostName}:{port}...");
+                Log.Information("Connecting to RabbitMQ at {Host}:{Port}", hostName, port);
 
-                // Create publisher instance
                 await using var publisher = new PiranhaEventPublisher(
                     hostName: hostName,
                     port: port,
                     user: username,
                     pass: password);
 
-                // Create a test event object with more detailed content
                 var testEvent = new
                 {
                     Id = Guid.NewGuid(),
@@ -51,24 +61,28 @@ namespace ContentsRUs.Eventing.Publisher
                     }
                 };
 
-                Console.WriteLine("Connected! Publishing test event as JSON...");
+                var traceId = Guid.NewGuid().ToString();
+                using (LogContext.PushProperty("TraceId", traceId))
+                {
+                    Log.Information("Connected to RabbitMQ. Publishing event with TraceId {TraceId}", traceId);
 
-                // Publish with a specific routing key
-                string routingKey = "content.test";
-                await publisher.PublishAsync(
-                    @event: testEvent,
-                    routingKey: routingKey);
+                    string routingKey = "content.test";
+                    await publisher.PublishAsync(
+                        @event: testEvent,
+                        routingKey: routingKey);
 
-                Console.WriteLine($"Event published successfully with routing key: {routingKey}");
-                Console.WriteLine("Check your RabbitMQ management console to see the JSON message in the queue!");
-                Console.WriteLine($"Management console: http://localhost:15672/ (user: {username}, password: {password})");
+                    Log.Information("Event published with routing key {RoutingKey}", routingKey);
+                }
+
+                Log.Information("Publisher finished. Check RabbitMQ for the event.");
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error: {ex.Message}");
-                Console.WriteLine(ex.StackTrace);
-                Console.ResetColor();
+                Log.Fatal(ex, "An error occurred during publishing");
+            }
+            finally
+            {
+                Log.CloseAndFlush();
             }
 
             Console.WriteLine("\nPress any key to exit...");
