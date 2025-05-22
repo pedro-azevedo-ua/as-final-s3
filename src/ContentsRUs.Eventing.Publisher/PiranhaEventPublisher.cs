@@ -6,7 +6,7 @@ using Serilog.Context;
 
 namespace ContentsRUs.Eventing.Publisher
 {
-    public class PiranhaEventPublisher : IAsyncDisposable
+    public class PiranhaEventPublisher : IPiranhaEventPublisher, IAsyncDisposable
     {
         private readonly ConnectionFactory _factory;
         private readonly string _exchange = "piranha.events";

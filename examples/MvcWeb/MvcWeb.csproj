@@ -20,4 +20,8 @@
     <ProjectReference Include="..\..\src\ContentsRUs.Eventing.Publisher\ContentsRUs.Eventing.Publisher.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Scrutor" Version="6.0.1" />
+  </ItemGroup>
+
 </Project>

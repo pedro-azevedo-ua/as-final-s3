@@ -1,11 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using Piranha;
+using Piranha.Services;
 using Piranha.AspNetCore.Identity.SQLite;
 using Piranha.AttributeBuilder;
 using Piranha.Data.EF.SQLite;
 using Piranha.Manager.Editor;
 using ContentsRUs.Eventing.Listener;
 
+using ContentsRUs.Eventing.Publisher;
+using MvcWeb.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,6 +50,19 @@ builder.AddPiranha(options =>
      * the manager interface.
     options.LoginUrl = "login";
      */
+});
+
+builder.Services.TryDecorate<IPageService, CustomPageService>();
+
+builder.Services.AddSingleton<IPiranhaEventPublisher>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    return new PiranhaEventPublisher(
+        config["RabbitMQ:HostName"] ?? "localhost",
+        int.Parse(config["RabbitMQ:Port"] ?? "5672"),
+        config["RabbitMQ:UserName"] ?? "user",
+        config["RabbitMQ:Password"] ?? "password"
+    );
 });
 
 builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(
