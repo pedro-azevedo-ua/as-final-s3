@@ -9,11 +9,15 @@
  */
 
 using System.ComponentModel.DataAnnotations;
+using ContentsRUs.Eventing.Publisher;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Piranha.Manager.Models;
 using Piranha.Manager.Services;
+using Microsoft.Extensions.Logging;
+
+
 
 namespace Piranha.Manager.Controllers;
 
@@ -32,6 +36,7 @@ public class PageApiController : Controller
     private readonly ManagerLocalizer _localizer;
     private readonly IHubContext<Hubs.PreviewHub> _hub;
     private readonly IAuthorizationService _auth;
+    private readonly ILogger<PageApiController> _logger;
 
     /// <summary>
     /// Default constructor.
@@ -213,10 +218,63 @@ public class PageApiController : Controller
         {
             model.Published = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
         }
-
+        Console.WriteLine($"public async Task<PageEditModel> Save(PageEditModel model)");
         var ret = await Save(model, false);
         await _hub?.Clients.All.SendAsync("Update", model.Id);
+        try
+        {
+            string hostName = "localhost";
+            int port = 5672;
+            string username = "user";
+            string password = "password";
 
+            //Log.Information("Connecting to RabbitMQ at {Host}:{Port}", hostName, port);
+
+            await using var publisher = new PiranhaEventPublisher(
+                hostName: hostName,
+                port: port,
+                user: username,
+                pass: password);
+
+            var testEvent = new
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Content Update",
+                CreatedAt = DateTime.UtcNow,
+                Content = new
+                {
+                    Title = "Sample Article",
+                    Slug = "sample-article",
+                    Excerpt = "This is a test excerpt from Piranha CMS",
+                    Body = "This is the full body of the test article from Piranha CMS",
+                    LastModified = DateTime.UtcNow,
+                    Categories = new[] { "News", "Technology" }
+                },
+                Author = new
+                {
+                    Id = 1,
+                    Name = "John Doe",
+                    Email = "john@example.com"
+                }
+            };
+
+
+            string routingKey = "content.test";
+            await publisher.PublishAsync(
+                @event: testEvent,
+                routingKey: routingKey);
+
+            // write in the console the result
+            Console.WriteLine($"Message Sent");
+
+
+        }
+        catch (Exception ex)
+        {
+        }
+        finally
+        {
+        }
         return ret;
     }
 
@@ -246,11 +304,67 @@ public class PageApiController : Controller
     [Authorize(Policy = Permission.PagesPublish)]
     public async Task<PageEditModel> SaveUnpublish(PageEditModel model)
     {
+
         // Remove published date
         model.Published = null;
 
         var ret = await Save(model, false);
         await _hub?.Clients.All.SendAsync("Update", model.Id);
+
+        try
+        {
+            string hostName = "localhost";
+            int port = 5672;
+            string username = "user";
+            string password = "password";
+
+            //Log.Information("Connecting to RabbitMQ at {Host}:{Port}", hostName, port);
+
+            await using var publisher = new PiranhaEventPublisher(
+                hostName: hostName,
+                port: port,
+                user: username,
+                pass: password);
+
+            var testEvent = new
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test Content Update",
+                CreatedAt = DateTime.UtcNow,
+                Content = new
+                {
+                    Title = "Sample Article",
+                    Slug = "sample-article",
+                    Excerpt = "This is a test excerpt from Piranha CMS",
+                    Body = "This is the full body of the test article from Piranha CMS",
+                    LastModified = DateTime.UtcNow,
+                    Categories = new[] { "News", "Technology" }
+                },
+                Author = new
+                {
+                    Id = 1,
+                    Name = "John Doe",
+                    Email = "john@example.com"
+                }
+            };
+
+
+            string routingKey = "content.test";
+            await publisher.PublishAsync(
+                @event: testEvent,
+                routingKey: routingKey);
+
+            // write in the console the result
+            Console.WriteLine($"Message Sent");
+
+
+        }
+        catch (Exception ex)
+        {
+        }
+        finally
+        {
+        }
 
         return ret;
     }
