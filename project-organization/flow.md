@@ -102,22 +102,17 @@ volumes:
   * ```
     dotnet sln add ContentsRUs.Eventing.Listener/ContentsRUs.Eventing.Listener.csproj
     ```
+
   - Create `ExternalEventListenerService.cs`
+
     - this will listen for messages and performe actions depending on the message from external sources, handles messages with actions depending on the routing key.
   - In the example/MvcWeb:
-    - appsettings.json:  ```   "RabbitMQ": {
-        "HostName": "localhost",
-        "Port": 5672,
-        "UserName": "user",
-        "Password": "password",
-        "Exchange": "piranha.external.events",
-        "Queue": "piranha.external.queue",
-        "RoutingKey": "content.#"
-    },```
 
-    - In the Program.cs: 
-     ``` 
-     builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(
+    - appsettings.json:  ``   "RabbitMQ": { "HostName": "localhost", "Port": 5672, "UserName": "user", "Password": "password", "Exchange": "piranha.external.events", "Queue": "piranha.external.queue", "RoutingKey": "content.#" },``
+    - In the Program.cs:
+
+    ```
+    builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(
     sp.GetRequiredService<ILogger<ExternalEventListenerService>>(),
     builder.Configuration["RabbitMQ:HostName"] ?? "localhost",
     int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
@@ -128,9 +123,18 @@ volumes:
     ```
   - created the sender.js to send messages to the broker
   - To see it working:
+
     - RabbitMQ running in docker
     - Run MvcWeb examples:
-      -  ``` dotnet run --framework net8.0 ``` 
+
+      - ``dotnet run --framework net8.0``
     - Run producer
-      - ``` npm run startProducer ```
+
+      - ``npm run startProducer``
       - this will send a message that will trigger some logs in the piranha
+
+    ### 2.5 Hook into Piranha Publish Events
+
+
+    - PiranhaManager/PageApiController in `public async Task <PageEditModel>`` Save(PageEditModel model){}`
+      - added the publish method
