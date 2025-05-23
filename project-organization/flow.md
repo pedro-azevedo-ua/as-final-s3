@@ -88,6 +88,7 @@ volumes:
 
 ### Integratestructured JSON logging(Serilog) with trace IDs in the Publisher**
 
+```
 > cd src/ContentsRUs.Eventing.Publisher
 > dotnet add package Serilog.AspNetCore
 > dotnet add package Serilog.Sinks.Console
@@ -95,9 +96,9 @@ volumes:
 > dotnet add package Serilog.Enrichers.Environment
 > dotnet add package Serilog.Enrichers.Process
 > dotnet add package Serilog.Settings.Configuration
-
-run ContentsRUs.Eventing.Publisher
-check console output
+```
+- run ContentsRUs.Eventing.Publisher
+- check console output
 
 ### 2.1 Build `ExternalEventListenerService` (IHostedService)
 
