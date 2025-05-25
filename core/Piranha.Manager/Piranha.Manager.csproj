@@ -40,8 +40,4 @@
     <Content Remove="package-lock.json" />
   </ItemGroup>
 
-  <ItemGroup>
-
-  </ItemGroup>
-
 </Project>

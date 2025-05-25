@@ -17,6 +17,8 @@ using Piranha.Manager.Models;
 using Piranha.Manager.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Mvc.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 
 namespace Piranha.Manager.Controllers;
 
@@ -226,10 +228,12 @@ public class PageApiController : Controller
 
         try
         {
-            string hostName = "localhost";
-            int port = 5672;
-            string username = "user";
-            string password = "password";
+            var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+
+            string hostName = config["RabbitMQ:HostName"];
+            int port = int.Parse(config["RabbitMQ:Port"]);
+            string username = config["RabbitMQ:UserName"];
+            string password = config["RabbitMQ:Password"];
 
             //Log.Information("Connecting to RabbitMQ at {Host}:{Port}", hostName, port);
 
@@ -350,10 +354,12 @@ public class PageApiController : Controller
 
         try
         {
-            string hostName = "localhost";
-            int port = 5672;
-            string username = "user";
-            string password = "password";
+            var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+
+            string hostName = config["RabbitMQ:HostName"];
+            int port = int.Parse(config["RabbitMQ:Port"]);
+            string username = config["RabbitMQ:UserName"];
+            string password = config["RabbitMQ:Password"];
 
             //Log.Information("Connecting to RabbitMQ at {Host}:{Port}", hostName, port);
 
@@ -392,12 +398,18 @@ public class PageApiController : Controller
                 routingKey: routingKey);
 
             // write in the console the result
-            Console.WriteLine($"Message Sent");
+            Console.WriteLine($"Event published");
 
 
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "An error occurred while publishing the event");
+            ret.Status = new StatusMessage
+            {
+                Type = StatusMessage.Error,
+                Body = _localizer.Page["An error occurred while publishing the page"]
+            };
         }
         finally
         {
@@ -443,7 +455,59 @@ public class PageApiController : Controller
     {
         try
         {
+
+            var page = await _api.Pages.GetByIdAsync(id);
+
             await _service.Delete(id);
+
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userName = User.Identity?.Name;
+            var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+
+            var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+
+            string hostName = config["RabbitMQ:HostName"];
+            int port = int.Parse(config["RabbitMQ:Port"]);
+            string username = config["RabbitMQ:UserName"];
+            string password = config["RabbitMQ:Password"];
+
+            await using var publisher = new PiranhaEventPublisher(
+
+            hostName: hostName,
+            port: port,
+            user: username,
+            pass: password);
+
+            var deleteEvent = new
+            {
+                Id = Guid.NewGuid(),
+                Type = "ContentDeleted",
+                DeletedAt = DateTime.UtcNow,
+                Page = new
+                {
+                    PageId = id,
+                    Title = page?.Title,
+                    Slug = page?.Slug
+                },
+                Author = new
+                {
+                    Id = userId,
+                    Name = userName,
+                    Email = userEmail
+                }
+            };
+
+            await publisher.PublishAsync(
+                @event: deleteEvent,
+                routingKey: "content.deleted");
+
+            Console.WriteLine($"Delete event published for page {id} with title '{page?.Title}'");
+
+            return new StatusMessage
+            {
+                Type = StatusMessage.Success,
+                Body = _localizer.Page["The page was successfully deleted"]
+            };
         }
         catch (ValidationException e)
         {
@@ -462,12 +526,6 @@ public class PageApiController : Controller
                 Body = _localizer.Page["An error occured while deleting the page"]
             };
         }
-
-        return new StatusMessage
-        {
-            Type = StatusMessage.Success,
-            Body = _localizer.Page["The page was successfully deleted"]
-        };
     }
 
     [Route("move")]
