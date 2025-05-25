@@ -16,8 +16,7 @@ using Microsoft.AspNetCore.SignalR;
 using Piranha.Manager.Models;
 using Piranha.Manager.Services;
 using Microsoft.Extensions.Logging;
-
-
+using Microsoft.AspNetCore.Mvc.Diagnostics;
 
 namespace Piranha.Manager.Controllers;
 
@@ -187,7 +186,7 @@ public class PageApiController : Controller
     [Route("detach")]
     [HttpPost]
     [Authorize(Policy = Permission.PagesEdit)]
-    public async Task<PageEditModel> Detach([FromBody]Guid pageId)
+    public async Task<PageEditModel> Detach([FromBody] Guid pageId)
     {
         var model = await _service.Detach(pageId);
 
@@ -218,9 +217,13 @@ public class PageApiController : Controller
         {
             model.Published = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
         }
+
         Console.WriteLine($"public async Task<PageEditModel> Save(PageEditModel model)");
+
         var ret = await Save(model, false);
+
         await _hub?.Clients.All.SendAsync("Update", model.Id);
+
         try
         {
             string hostName = "localhost";
@@ -236,6 +239,9 @@ public class PageApiController : Controller
                 user: username,
                 pass: password);
 
+            var page = await _api.Pages.GetByIdAsync(model.Id);
+
+            /*
             var testEvent = new
             {
                 Id = Guid.NewGuid(),
@@ -256,12 +262,37 @@ public class PageApiController : Controller
                     Name = "John Doe",
                     Email = "john@example.com"
                 }
+            };*/
+
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userName = User.Identity?.Name;
+            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+
+
+            var eventData = new
+            {
+                Id = page.Id,
+                Name = "Content Update",
+                CreatedAt = DateTime.UtcNow,
+                Content = new
+                {
+                    Title = page.Title,
+                    Slug = page.Slug,
+                    Type = page.TypeId,
+                    Regions = ((IDictionary<string, object>)page.Regions).ToDictionary(r => r.Key, r => r.Value)
+                },
+                Author = new
+                {
+                    Id = userId, // Author ID
+                    Name = userName,
+                    Email = email
+                }
             };
 
 
             string routingKey = "content.test";
             await publisher.PublishAsync(
-                @event: testEvent,
+                @event: eventData,
                 routingKey: routingKey);
 
             // write in the console the result
@@ -271,6 +302,12 @@ public class PageApiController : Controller
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "An error occurred while publishing the event");
+            ret.Status = new StatusMessage
+            {
+                Type = StatusMessage.Error,
+                Body = _localizer.Page["An error occurred while publishing the page"]
+            };
         }
         finally
         {
@@ -372,7 +409,7 @@ public class PageApiController : Controller
     [Route("revert")]
     [HttpPost]
     [Authorize(Policy = Permission.PagesSave)]
-    public async Task<PageEditModel> Revert([FromBody]Guid id)
+    public async Task<PageEditModel> Revert([FromBody] Guid id)
     {
         var page = await _service.GetById(id, false);
 
@@ -402,7 +439,7 @@ public class PageApiController : Controller
     [Route("delete")]
     [HttpDelete]
     [Authorize(Policy = Permission.PagesDelete)]
-    public async Task<StatusMessage> Delete([FromBody]Guid id)
+    public async Task<StatusMessage> Delete([FromBody] Guid id)
     {
         try
         {
@@ -436,7 +473,7 @@ public class PageApiController : Controller
     [Route("move")]
     [HttpPost]
     [Authorize(Policy = Permission.PagesEdit)]
-    public async Task<PageListModel> Move([FromBody]StructureModel model)
+    public async Task<PageListModel> Move([FromBody] StructureModel model)
     {
         if (await _service.MovePages(model))
         {
@@ -449,7 +486,8 @@ public class PageApiController : Controller
             };
             return list;
         }
-        return new PageListModel {
+        return new PageListModel
+        {
             Status = new StatusMessage
             {
                 Type = StatusMessage.Warning,

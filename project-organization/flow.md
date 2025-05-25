@@ -84,7 +84,7 @@ volumes:
 ### 1.4 | JS Consumer PoC: use amqplib in Node.js to consume & print JSON from the queue
 
 - created a js app in consumer-js
-- run with npm start and is waiting for messages
+- run with npm start and is waiting for messages - ``npm run startProducer``
 
 ### Integratestructured JSON logging(Serilog) with trace IDs in the Publisher**
 
