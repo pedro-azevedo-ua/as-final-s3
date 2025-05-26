@@ -9,8 +9,35 @@ using ContentsRUs.Eventing.Listener;
 
 using ContentsRUs.Eventing.Publisher;
 using MvcWeb.Services;
+using Serilog;
+using Serilog.Context;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, services, options) =>
+{
+    options
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Application", "Piranha.CMS")
+        .Enrich.WithMachineName()
+        .Enrich.WithProcessId()
+        .Enrich.WithThreadId()
+        .WriteTo.Logger(lc => lc
+            .Filter.ByIncludingOnly("SourceContext like '%RabbitMQ%'")
+            .WriteTo.File(
+                path: "Logs/Events/events-.log",
+                rollingInterval: RollingInterval.Day,
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] {CorrelationId} {Message}{NewLine}{Exception}")
+        )
+        .WriteTo.Logger(lc => lc
+            .Filter.ByIncludingOnly("SourceContext like '%Security%'")
+            .WriteTo.File(
+                path: "Logs/Security/security-.log",
+                rollingInterval: RollingInterval.Day,
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] {CorrelationId} {Message}{NewLine}{Exception}")
+        )
+        .ReadFrom.Configuration(context.Configuration); // Read from appsettings.json if needed
+});
 
 builder.AddPiranha(options =>
 {
@@ -75,6 +102,18 @@ builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerSer
 ));
 
 var app = builder.Build();
+
+
+
+app.Use(async (context, next) =>
+{
+    var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault() ?? Guid.NewGuid().ToString();
+    using (LogContext.PushProperty("CorrelationId", correlationId))
+    {
+        context.Response.Headers["X-Correlation-ID"] = correlationId;
+        await next();
+    }
+});
 
 if (app.Environment.IsDevelopment())
 {

@@ -19,6 +19,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Mvc.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using System.Security.Claims;
 
 namespace Piranha.Manager.Controllers;
 
@@ -37,18 +38,26 @@ public class PageApiController : Controller
     private readonly ManagerLocalizer _localizer;
     private readonly IHubContext<Hubs.PreviewHub> _hub;
     private readonly IAuthorizationService _auth;
-    private readonly ILogger<PageApiController> _logger;
+
+    private readonly ILogger<PageApiController> _systemLogger;
+    private readonly ILogger _eventLogger;
+    private readonly ILogger _securityLogger;
 
     /// <summary>
     /// Default constructor.
     /// </summary>
-    public PageApiController(PageService service, IApi api, ManagerLocalizer localizer, IHubContext<Hubs.PreviewHub> hub, IAuthorizationService auth)
+    public PageApiController(PageService service, IApi api, ManagerLocalizer localizer, IHubContext<Hubs.PreviewHub> hub, IAuthorizationService auth,
+         ILogger<PageApiController> systemLogger,
+        ILoggerFactory loggerFactory)
     {
         _service = service;
         _api = api;
         _localizer = localizer;
         _hub = hub;
         _auth = auth;
+        _systemLogger = systemLogger;
+        _eventLogger = loggerFactory.CreateLogger("Eventing.RabbitMQ");
+        _securityLogger = loggerFactory.CreateLogger("Security.Audit");
     }
 
     /// <summary>
@@ -214,6 +223,8 @@ public class PageApiController : Controller
     [Authorize(Policy = Permission.PagesPublish)]
     public async Task<PageEditModel> Save(PageEditModel model)
     {
+
+
         // Ensure that we have a published date
         if (string.IsNullOrEmpty(model.Published))
         {
@@ -234,7 +245,7 @@ public class PageApiController : Controller
             int port = int.Parse(config["RabbitMQ:Port"]);
             string username = config["RabbitMQ:UserName"];
             string password = config["RabbitMQ:Password"];
-
+            _eventLogger.LogInformation("Initiating content update event for page {PageId}", model.Id);
             //Log.Information("Connecting to RabbitMQ at {Host}:{Port}", hostName, port);
 
             await using var publisher = new PiranhaEventPublisher(
@@ -301,12 +312,15 @@ public class PageApiController : Controller
 
             // write in the console the result
             Console.WriteLine($"Message Sent");
+            _securityLogger.LogInformation("User {UserId} published page {PageId}", User.FindFirst(ClaimTypes.NameIdentifier), model.Id);
+
 
 
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An error occurred while publishing the event");
+            _eventLogger.LogError(ex, "Failed to publish event for page {PageId}", model.Id);
+            _systemLogger.LogCritical("Event publishing failure: {Error}", ex.Message);
             ret.Status = new StatusMessage
             {
                 Type = StatusMessage.Error,
@@ -351,6 +365,7 @@ public class PageApiController : Controller
 
         var ret = await Save(model, false);
         await _hub?.Clients.All.SendAsync("Update", model.Id);
+        _eventLogger.LogInformation("Initiating content update event for page {PageId}", model.Id);
 
         try
         {
@@ -399,12 +414,14 @@ public class PageApiController : Controller
 
             // write in the console the result
             Console.WriteLine($"Event published");
+            _securityLogger.LogInformation("User {UserId} published page {PageId}", User.FindFirst(ClaimTypes.NameIdentifier), model.Id);
 
 
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An error occurred while publishing the event");
+            _eventLogger.LogError(ex, "Failed to publish event for page {PageId}", model.Id);
+            _systemLogger.LogCritical("Event publishing failure: {Error}", ex.Message);
             ret.Status = new StatusMessage
             {
                 Type = StatusMessage.Error,
@@ -458,6 +475,9 @@ public class PageApiController : Controller
 
             var page = await _api.Pages.GetByIdAsync(id);
 
+            _securityLogger.LogInformation("User {UserId} is attempting to delete page {PageId}", User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier), id);
+            _eventLogger.LogInformation("Initiating content delete event for page {PageId}", id);
+
             await _service.Delete(id);
 
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -502,7 +522,7 @@ public class PageApiController : Controller
                 routingKey: "content.deleted");
 
             Console.WriteLine($"Delete event published for page {id} with title '{page?.Title}'");
-
+            _securityLogger.LogInformation("User {UserId} deleted page {PageId}", userId, id);
             return new StatusMessage
             {
                 Type = StatusMessage.Success,
@@ -518,8 +538,10 @@ public class PageApiController : Controller
                 Body = e.Message
             };
         }
-        catch
+        catch (Exception ex)
         {
+            _eventLogger.LogError(ex, "Failed to delete page {PageId}", id);
+            _systemLogger.LogCritical("Event publishing failure: {Error}", ex.Message);
             return new StatusMessage
             {
                 Type = StatusMessage.Error,

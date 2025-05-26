@@ -53,29 +53,27 @@ volumes:
 
 - Create new project to the solution:
 
-  * Right-click on the Solution in Solution Explorer.
-  * Select "Add" -> "New Project...".
-  * Search for "Class Library".
-  * Click "Next".
-  * **Project Name:** `ContentsRUs.Eventing.Publisher`
-  * **Location:** src/.
-  * Click "Next".
-  * Select the framework (e.g., .NET 8.0).
-  * Click "Create".
-  * ```
-    dotnet sln add ContentsRUs.Eventing.Publisher/ContentsRUs.Eventing.Publisher.csproj
-    ```
+  - Right-click on the Solution in Solution Explorer.
+  - Select "Add" -> "New Project...".
+  - Search for "Class Library".
+  - Click "Next".
+  - Project Name: `ContentsRUs.Eventing.Publisher`
+  - Location: src/.
+  - Click "Next".
+  - Select the framework (e.g., .NET 8.0).
+  - Click "Create".
+  - `dotnet sln add ContentsRUs.Eventing.Publisher/ContentsRUs.Eventing.Publisher.csproj`
 - Add RabbitMQ.Client package:
 
-  ```
+  `
   > cd src/ContentsRUs.Eventing.Publisher
   > dotnet add package RabbitMQ.Client
-  ```
+  `
 - Reference the core piranha project:
 
-  ```
+  `
   > dotnet add reference ../../core/Piranha/Piranha.csproj
-  ```
+  `
 - Create `PiranhaEventPublisher.cs`
 - Create `Program.cs`
 - run ContentsRUs.Eventing.Publisher
@@ -88,7 +86,7 @@ volumes:
 
 ### Integratestructured JSON logging(Serilog) with trace IDs in the Publisher**
 
-```
+`
 > cd src/ContentsRUs.Eventing.Publisher
 > dotnet add package Serilog.AspNetCore
 > dotnet add package Serilog.Sinks.Console
@@ -96,7 +94,7 @@ volumes:
 > dotnet add package Serilog.Enrichers.Environment
 > dotnet add package Serilog.Enrichers.Process
 > dotnet add package Serilog.Settings.Configuration
-```
+`
 - run ContentsRUs.Eventing.Publisher
 - check console output
 
@@ -104,28 +102,28 @@ volumes:
 
 - Create new project to the solution:
 
-  * Right-click on the Solution in Solution Explorer.
-  * Select "Add" -> "New Project...".
-  * Search for "Class Library".
-  * Click "Next".
-  * **Project Name:** `ContentsRUs.Eventing.Listener`
-  * **Location:** src/.
-  * Click "Next".
-  * Select the framework (e.g., .NET 8.0).
-  * Click "Create".
-  * ```
+  - Right-click on the Solution in Solution Explorer.
+  - Select "Add" -> "New Project...".
+  - Search for "Class Library".
+  - Click "Next".
+  - **Project Name:** `ContentsRUs.Eventing.Listener`
+  - **Location:** src/.
+  - Click "Next".
+  - Select the framework (e.g., .NET 8.0).
+  - Click "Create".
+  `
     dotnet sln add ContentsRUs.Eventing.Listener/ContentsRUs.Eventing.Listener.csproj
-    ```
+    `
 
   - Create `ExternalEventListenerService.cs`
 
     - this will listen for messages and performe actions depending on the message from external sources, handles messages with actions depending on the routing key.
   - In the example/MvcWeb:
 
-    - appsettings.json:  ``   "RabbitMQ": { "HostName": "localhost", "Port": 5672, "UserName": "user", "Password": "password", "Exchange": "piranha.external.events", "Queue": "piranha.external.queue", "RoutingKey": "content.#" },``
+    - appsettings.json:  ``"RabbitMQ": { "HostName": "localhost", "Port": 5672, "UserName": "user", "Password": "password", "Exchange": "piranha.external.events", "Queue": "piranha.external.queue", "RoutingKey": "content.#" },``
     - In the Program.cs:
 
-    ```
+    `
     builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(
     sp.GetRequiredService<ILogger<ExternalEventListenerService>>(),
     builder.Configuration["RabbitMQ:HostName"] ?? "localhost",
@@ -134,7 +132,7 @@ volumes:
     builder.Configuration["RabbitMQ:Password"] ?? "password",
     routingKey: "content.#"
     ));
-    ```
+    `
   - created the sender.js to send messages to the broker
   - To see it working:
 
@@ -148,7 +146,28 @@ volumes:
       - this will send a message that will trigger some logs in the piranha
 
     ### 2.5 Hook into Piranha Publish Events
-
-
     - PiranhaManager/PageApiController in `public async Task <PageEditModel>`` Save(PageEditModel model){}`
       - added the publish method
+
+    ### Logs
+
+    - examples/MvcWeb/appsettigns.json:
+      `"Serilog": {
+  "Using": ["Serilog.Sinks.File"],
+  "MinimumLevel": {
+    "Default": "Information",
+    "Override": {
+      "Microsoft": "Warning",
+      ...
+            "Name": "ByIncludingOnly",
+            "Args": {
+              "expression": "SourceContext like '%Security%'"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+`
+ - Adicionar no PageApiController os logs
