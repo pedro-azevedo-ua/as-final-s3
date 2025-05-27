@@ -20,6 +20,9 @@ using Microsoft.AspNetCore.Mvc.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
+using ContentsRUs.Eventing.Shared.Helpers;
+using ContentsRUs.Eventing.Shared.Models;
+
 
 namespace Piranha.Manager.Controllers;
 
@@ -223,8 +226,6 @@ public class PageApiController : Controller
     [Authorize(Policy = Permission.PagesPublish)]
     public async Task<PageEditModel> Save(PageEditModel model)
     {
-
-
         // Ensure that we have a published date
         if (string.IsNullOrEmpty(model.Published))
         {
@@ -245,8 +246,9 @@ public class PageApiController : Controller
             int port = int.Parse(config["RabbitMQ:Port"]);
             string username = config["RabbitMQ:UserName"];
             string password = config["RabbitMQ:Password"];
+            string signingKey = config["Security:MessageSigningKey"];
+
             _eventLogger.LogInformation("Initiating content update event for page {PageId}", model.Id);
-            //Log.Information("Connecting to RabbitMQ at {Host}:{Port}", hostName, port);
 
             await using var publisher = new PiranhaEventPublisher(
                 hostName: hostName,
@@ -256,66 +258,42 @@ public class PageApiController : Controller
 
             var page = await _api.Pages.GetByIdAsync(model.Id);
 
-            /*
-            var testEvent = new
-            {
-                Id = Guid.NewGuid(),
-                Name = "Test Content Update",
-                CreatedAt = DateTime.UtcNow,
-                Content = new
-                {
-                    Title = "Sample Article",
-                    Slug = "sample-article",
-                    Excerpt = "This is a test excerpt from Piranha CMS",
-                    Body = "This is the full body of the test article from Piranha CMS",
-                    LastModified = DateTime.UtcNow,
-                    Categories = new[] { "News", "Technology" }
-                },
-                Author = new
-                {
-                    Id = 1,
-                    Name = "John Doe",
-                    Email = "john@example.com"
-                }
-            };*/
-
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             var userName = User.Identity?.Name;
             var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
 
-
-            var eventData = new
+            // Build the secure event message
+            var secureEvent = new SecureContentEvent
             {
                 Id = page.Id,
                 Name = "Content Update",
                 CreatedAt = DateTime.UtcNow,
-                Content = new
+                Content = new ContentData
                 {
                     Title = page.Title,
                     Slug = page.Slug,
                     Type = page.TypeId,
                     Regions = ((IDictionary<string, object>)page.Regions).ToDictionary(r => r.Key, r => r.Value)
                 },
-                Author = new
+                Author = new AuthorData
                 {
-                    Id = userId, // Author ID
                     Name = userName,
                     Email = email
-                }
+                },
+                HashedUserId = MessageSecurityHelper.HashUserId(userId)
+                // Signature will be set below
             };
 
+            // Sign the message
+            secureEvent.Signature = MessageSecurityHelper.ComputeHmacSignature(secureEvent, signingKey);
 
             string routingKey = "content.test";
             await publisher.PublishAsync(
-                @event: eventData,
+                @event: secureEvent,
                 routingKey: routingKey);
 
-            // write in the console the result
             Console.WriteLine($"Message Sent");
-            _securityLogger.LogInformation("User {UserId} published page {PageId}", User.FindFirst(ClaimTypes.NameIdentifier), model.Id);
-
-
-
+            _securityLogger.LogInformation("User {UserId} published page {PageId}", userId, model.Id);
         }
         catch (Exception ex)
         {
@@ -327,11 +305,9 @@ public class PageApiController : Controller
                 Body = _localizer.Page["An error occurred while publishing the page"]
             };
         }
-        finally
-        {
-        }
         return ret;
     }
+
 
     /// <summary>
     /// Saves the given model

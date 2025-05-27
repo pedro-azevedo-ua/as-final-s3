@@ -93,12 +93,10 @@ builder.Services.AddSingleton<IPiranhaEventPublisher>(sp =>
 });
 
 builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(
-    sp.GetRequiredService<ILogger<ExternalEventListenerService>>(),
-    builder.Configuration["RabbitMQ:HostName"] ?? "localhost",
-    int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
-    builder.Configuration["RabbitMQ:UserName"] ?? "user",
-    builder.Configuration["RabbitMQ:Password"] ?? "password",
-    routingKey: "content.#"
+    sp,
+    builder.Configuration,
+    sp.GetRequiredService<ILogger<ExternalEventListenerService>>()
+
 ));
 
 var app = builder.Build();

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -22,6 +22,7 @@
 <ItemGroup>
 	<ProjectReference Include="..\..\core\Piranha\Piranha.csproj" />
 	<ProjectReference Include="..\ContentsRUs.Eventing.Models\ContentsRUs.Eventing.Models.csproj" />
+	<ProjectReference Include="..\ContentsRUs.Eventing.Shared\ContentsRUs.Eventing.Shared.csproj" />
 </ItemGroup>
 
 </Project>

@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\identity\Piranha.AspNetCore.Identity.SQLite\Piranha.AspNetCore.Identity.SQLite.csproj" />
     <ProjectReference Include="..\..\src\ContentsRUs.Eventing.Listener\ContentsRUs.Eventing.Listener.csproj" />
     <ProjectReference Include="..\..\src\ContentsRUs.Eventing.Publisher\ContentsRUs.Eventing.Publisher.csproj" />
+	<ProjectReference Include="..\..\src\ContentsRUs.Eventing.Shared\ContentsRUs.Eventing.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>

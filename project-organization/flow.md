@@ -66,14 +66,18 @@ volumes:
 - Add RabbitMQ.Client package:
 
   `
+
   > cd src/ContentsRUs.Eventing.Publisher
   > dotnet add package RabbitMQ.Client
-  `
+  > `
+  >
 - Reference the core piranha project:
 
   `
+
   > dotnet add reference ../../core/Piranha/Piranha.csproj
-  `
+  > `
+  >
 - Create `PiranhaEventPublisher.cs`
 - Create `Program.cs`
 - run ContentsRUs.Eventing.Publisher
@@ -87,6 +91,7 @@ volumes:
 ### Integratestructured JSON logging(Serilog) with trace IDs in the Publisher**
 
 `
+
 > cd src/ContentsRUs.Eventing.Publisher
 > dotnet add package Serilog.AspNetCore
 > dotnet add package Serilog.Sinks.Console
@@ -94,7 +99,8 @@ volumes:
 > dotnet add package Serilog.Enrichers.Environment
 > dotnet add package Serilog.Enrichers.Process
 > dotnet add package Serilog.Settings.Configuration
-`
+> `
+
 - run ContentsRUs.Eventing.Publisher
 - check console output
 
@@ -111,10 +117,7 @@ volumes:
   - Click "Next".
   - Select the framework (e.g., .NET 8.0).
   - Click "Create".
-  `
-    dotnet sln add ContentsRUs.Eventing.Listener/ContentsRUs.Eventing.Listener.csproj
-    `
-
+    `dotnet sln add ContentsRUs.Eventing.Listener/ContentsRUs.Eventing.Listener.csproj`
   - Create `ExternalEventListenerService.cs`
 
     - this will listen for messages and performe actions depending on the message from external sources, handles messages with actions depending on the routing key.
@@ -123,51 +126,57 @@ volumes:
     - appsettings.json:  ``"RabbitMQ": { "HostName": "localhost", "Port": 5672, "UserName": "user", "Password": "password", "Exchange": "piranha.external.events", "Queue": "piranha.external.queue", "RoutingKey": "content.#" },``
     - In the Program.cs:
 
-    `
-    builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(
-    sp.GetRequiredService<ILogger<ExternalEventListenerService>>(),
-    builder.Configuration["RabbitMQ:HostName"] ?? "localhost",
-    int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
-    builder.Configuration["RabbitMQ:UserName"] ?? "user",
-    builder.Configuration["RabbitMQ:Password"] ?? "password",
-    routingKey: "content.#"
-    ));
-    `
+    `builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService( sp.GetRequiredService<ILogger<ExternalEventListenerService>>(), builder.Configuration["RabbitMQ:HostName"] ?? "localhost", int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"), builder.Configuration["RabbitMQ:UserName"] ?? "user", builder.Configuration["RabbitMQ:Password"] ?? "password", routingKey: "content.#" ));`
   - created the sender.js to send messages to the broker
-  - To see it working:
+- To see it working:
 
-    - RabbitMQ running in docker
-    - Run MvcWeb examples:
+  ### 2.5 Hook into Piranha Publish Events
 
-      - ``dotnet run --framework net8.0``
-    - Run producer
+  ### Logs
 
-      - ``npm run startProducer``
-      - this will send a message that will trigger some logs in the piranha
 
-    ### 2.5 Hook into Piranha Publish Events
-    - PiranhaManager/PageApiController in `public async Task <PageEditModel>`` Save(PageEditModel model){}`
-      - added the publish method
+  - RabbitMQ running in docker
+  - Run MvcWeb examples:
 
-    ### Logs
+    - ``dotnet run --framework net8.0``
+  - ``dotnet run --framework net8.0``
+  - Run producer
 
-    - examples/MvcWeb/appsettigns.json:
-      `"Serilog": {
-  "Using": ["Serilog.Sinks.File"],
-  "MinimumLevel": {
-    "Default": "Information",
-    "Override": {
-      "Microsoft": "Warning",
-      ...
-            "Name": "ByIncludingOnly",
-            "Args": {
-              "expression": "SourceContext like '%Security%'"
-            }
-          }
-        ]
-      }
-    }
-  ]
-}
-`
- - Adicionar no PageApiController os logs
+    - ``npm run startProducer``
+    - this will send a message that will trigger some logs in the piranha
+  - ``npm run startProducer``
+  - this will send a message that will trigger some logs in the piranha
+  - PiranhaManager/PageApiController in `public async Task <PageEditModel>`` Save(PageEditModel model){}`
+
+    - added the publish method
+  - added the publish method
+  - examples/MvcWeb/appsettigns.json:
+    `"Serilog": { "Using": ["Serilog.Sinks.File"], "MinimumLevel": { "Default": "Information", "Override": { "Microsoft": "Warning", ... "Name": "ByIncludingOnly", "Args": { "expression": "SourceContext like '%Security%'" } } ] } } ] } `
+- Adicionar no PageApiController os logs
+
+
+
+### 2.x Trigger events from 3rd parties, secure.
+
+- Created ContentRUs.Eventing.Shared:
+
+  - helpers/MessageSecurityHelper.cs
+    - With funcion to hash the user id
+    - Function to ComputeHmacSignature and another to validate, to validate the source of the message
+    - ValidateSecureContentEvent, to validate the structure of the message.
+- Updated the ContentRUs.Eventing.Listener/externalEventListenerService:
+
+  - to handle the messages receive, validate them and publish a page (event triggerd)
+- MvcWeb
+
+  - add Security - MessageSigningKey
+
+
+
+### 2.x Serilogs - centralized
+
+- define in the MVC appsettings.json the files and what to include
+- In MVC program.cs added:
+  - `builder.Host.UseSerilog((context, services, options) => { options .Enrich.FromLogContext() .Enrich.WithProperty("Application", "Piranha.CMS") .Enrich.WithMachineName() .Enrich.WithProcessId() .Enrich.WithThreadId() .WriteTo.Logger(lc => lc .Filter.ByIncludingOnly("SourceContext like '%RabbitMQ%'") .WriteTo.File( path: "Logs/Events/events-.log", rollingInterval: RollingInterval.Day, outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] {CorrelationId} {Message}{NewLine}{Exception}") ) .WriteTo.Logger(lc => lc .Filter.ByIncludingOnly("SourceContext like '%Security%'") .WriteTo.File( path: "Logs/Security/security-.log", rollingInterval: RollingInterval.Day, outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] {CorrelationId} {Message}{NewLine}{Exception}") ) .ReadFrom.Configuration(context.Configuration); // Read from appsettings.json if needed });`
+- See logs in MvcWeb/logs
+- Applyied some in tge EsternalEventListenerService

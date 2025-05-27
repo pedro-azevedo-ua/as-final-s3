@@ -5,7 +5,7 @@
   "main": "consumer.js",
   "scripts": {
     "startConsuming": "node consumer.js",
-    "startProducer": "node sender.js"
+    "startProducer": "node producer.js"
   },
   "dependencies": {
     "amqplib": "^0.10.8"
