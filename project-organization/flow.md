@@ -180,3 +180,44 @@ volumes:
   - `builder.Host.UseSerilog((context, services, options) => { options .Enrich.FromLogContext() .Enrich.WithProperty("Application", "Piranha.CMS") .Enrich.WithMachineName() .Enrich.WithProcessId() .Enrich.WithThreadId() .WriteTo.Logger(lc => lc .Filter.ByIncludingOnly("SourceContext like '%RabbitMQ%'") .WriteTo.File( path: "Logs/Events/events-.log", rollingInterval: RollingInterval.Day, outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] {CorrelationId} {Message}{NewLine}{Exception}") ) .WriteTo.Logger(lc => lc .Filter.ByIncludingOnly("SourceContext like '%Security%'") .WriteTo.File( path: "Logs/Security/security-.log", rollingInterval: RollingInterval.Day, outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] {CorrelationId} {Message}{NewLine}{Exception}") ) .ReadFrom.Configuration(context.Configuration); // Read from appsettings.json if needed });`
 - See logs in MvcWeb/logs
 - Applyied some in tge EsternalEventListenerService
+
+
+### 2.x Piranha Page CheckBox to enable Outbound subscription
+
+What Was Planned
+
+Under **Settings** in the Piranha admin, a new **"Eventing"** section would be created.
+
+This section would list **all page types or content models**, each with two toggles:
+- **“Publish on save”** – controls outbound event publishing
+- **“Subscribe to inbound”** – enables inbound message processing
+
+The configuration would be stored in a custom database table or Piranha’s `AppParam` store to allow runtime toggling without code changes.
+
+---
+
+What Was Implemented
+
+Instead of a centralized "Settings" section, the implementation was simplified as follows:
+
+- A custom boolean field named `PublishEvents` was added as a **region** to individual page types (e.g., a checkbox).
+- On **save** or **delete** actions:
+  - If `PublishEvents == true`, an **outbound event** is published via RabbitMQ.
+  - If `PublishEvents == false` or not present, the action completes but no event is emitted.
+- **Inbound subscription** logic was **not implemented** at this stage.
+
+This approach allows **per-page-instance control** over event publishing without the need for a global admin UI.
+
+---
+
+Why
+
+This design allows content editors to control whether events are triggered **per page**, with no code changes required (as long as the page type includes the `PublishEvents` region).
+
+---
+
+How to Verify
+
+- Create or edit a page with `PublishEvents = false`, then save — **no outbound event** is published.
+- Set `PublishEvents = true`, then save — an outbound event **is published** to RabbitMQ.
+- Deleting a page follows the same logic — event only published if `PublishEvents == true`.
