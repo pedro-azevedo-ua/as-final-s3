@@ -23,7 +23,6 @@ using System.Security.Claims;
 using ContentsRUs.Eventing.Shared.Helpers;
 using ContentsRUs.Eventing.Shared.Models;
 
-
 namespace Piranha.Manager.Controllers;
 
 /// <summary>
@@ -226,7 +225,6 @@ public class PageApiController : Controller
     [Authorize(Policy = Permission.PagesPublish)]
     public async Task<PageEditModel> Save(PageEditModel model)
     {
-        // Ensure that we have a published date
         if (string.IsNullOrEmpty(model.Published))
         {
             model.Published = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
@@ -258,42 +256,71 @@ public class PageApiController : Controller
 
             var page = await _api.Pages.GetByIdAsync(model.Id);
 
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            var userName = User.Identity?.Name;
-            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-
-            // Build the secure event message
-            var secureEvent = new SecureContentEvent
+            var regions = page.Regions as IDictionary<string, object>;
+            if (regions != null && regions.TryGetValue("PublishEvents", out var publishObj))
             {
-                Id = page.Id,
-                Name = "Content Update",
-                CreatedAt = DateTime.UtcNow,
-                Content = new ContentData
+                var valueProp = publishObj?.GetType().GetProperty("Value");
+                var value = valueProp?.GetValue(publishObj);
+                bool shouldPublish = value is bool b && b;
+
+                if (shouldPublish)
                 {
-                    Title = page.Title,
-                    Slug = page.Slug,
-                    Type = page.TypeId,
-                    Regions = ((IDictionary<string, object>)page.Regions).ToDictionary(r => r.Key, r => r.Value)
-                },
-                Author = new AuthorData
+                    var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    var userName = User.Identity?.Name;
+                    var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+
+                    var secureEvent = new SecureContentEvent
+                    {
+                        Id = page.Id,
+                        Name = "Content Update",
+                        CreatedAt = DateTime.UtcNow,
+                        Content = new ContentData
+                        {
+                            Title = page.Title,
+                            Slug = page.Slug,
+                            Type = page.TypeId,
+                            Regions = ((IDictionary<string, object>)page.Regions).ToDictionary(r => r.Key, r => r.Value)
+                        },
+                        Author = new AuthorData
+                        {
+                            Name = userName,
+                            Email = email
+                        },
+                        HashedUserId = MessageSecurityHelper.HashUserId(userId)
+                    };
+
+                    secureEvent.Signature = MessageSecurityHelper.ComputeHmacSignature(secureEvent, signingKey);
+
+                    string routingKey = "content.test";
+                    await publisher.PublishAsync(@event: secureEvent, routingKey: routingKey);
+
+                    Console.WriteLine($"Message Sent");
+                    _securityLogger.LogInformation("User {UserId} published page {PageId}", userId, model.Id);
+
+                    ret.Status = new StatusMessage
+                    {
+                        Type = StatusMessage.Success,
+                        Body = _localizer.Page["The page was successfully saved and event was published"]
+                    };
+                }
+                else
                 {
-                    Name = userName,
-                    Email = email
-                },
-                HashedUserId = MessageSecurityHelper.HashUserId(userId)
-                // Signature will be set below
-            };
-
-            // Sign the message
-            secureEvent.Signature = MessageSecurityHelper.ComputeHmacSignature(secureEvent, signingKey);
-
-            string routingKey = "content.test";
-            await publisher.PublishAsync(
-                @event: secureEvent,
-                routingKey: routingKey);
-
-            Console.WriteLine($"Message Sent");
-            _securityLogger.LogInformation("User {UserId} published page {PageId}", userId, model.Id);
+                    _eventLogger.LogInformation("PublishEvents is false — skipping event publishing for page {PageId}", model.Id);
+                    ret.Status = new StatusMessage
+                    {
+                        Type = StatusMessage.Warning,
+                        Body = _localizer.Page["The page was successfully saved, but no event was published"]
+                    };
+                }
+            }
+            else
+            {
+                ret.Status = new StatusMessage
+                {
+                    Type = StatusMessage.Warning,
+                    Body = _localizer.Page["The page was successfully saved, but event conditions were not met"]
+                };
+            }
         }
         catch (Exception ex)
         {
@@ -305,9 +332,9 @@ public class PageApiController : Controller
                 Body = _localizer.Page["An error occurred while publishing the page"]
             };
         }
+
         return ret;
     }
-
 
     /// <summary>
     /// Saves the given model
@@ -448,66 +475,79 @@ public class PageApiController : Controller
     {
         try
         {
-
             var page = await _api.Pages.GetByIdAsync(id);
 
-            _securityLogger.LogInformation("User {UserId} is attempting to delete page {PageId}", User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier), id);
-            _eventLogger.LogInformation("Initiating content delete event for page {PageId}", id);
-
+            // Always delete
             await _service.Delete(id);
 
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            var userName = User.Identity?.Name;
-            var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            var regions = page.Regions as IDictionary<string, object>;
+            bool shouldPublish = false;
 
-            var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
-
-            string hostName = config["RabbitMQ:HostName"];
-            int port = int.Parse(config["RabbitMQ:Port"]);
-            string username = config["RabbitMQ:UserName"];
-            string password = config["RabbitMQ:Password"];
-
-            await using var publisher = new PiranhaEventPublisher(
-
-            hostName: hostName,
-            port: port,
-            user: username,
-            pass: password);
-
-            var deleteEvent = new
+            if (regions != null && regions.TryGetValue("PublishEvents", out var publishObj))
             {
-                Id = Guid.NewGuid(),
-                Type = "ContentDeleted",
-                DeletedAt = DateTime.UtcNow,
-                Page = new
-                {
-                    PageId = id,
-                    Title = page?.Title,
-                    Slug = page?.Slug
-                },
-                Author = new
-                {
-                    Id = userId,
-                    Name = userName,
-                    Email = userEmail
-                }
-            };
+                var valueProp = publishObj?.GetType().GetProperty("Value");
+                var value = valueProp?.GetValue(publishObj);
+                shouldPublish = value is bool b && b;
+            }
 
-            await publisher.PublishAsync(
-                @event: deleteEvent,
-                routingKey: "content.deleted");
+            if (shouldPublish)
+            {
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var userName = User.Identity?.Name;
+                var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
 
-            Console.WriteLine($"Delete event published for page {id} with title '{page?.Title}'");
-            _securityLogger.LogInformation("User {UserId} deleted page {PageId}", userId, id);
+                var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+                string hostName = config["RabbitMQ:HostName"];
+                int port = int.Parse(config["RabbitMQ:Port"]);
+                string username = config["RabbitMQ:UserName"];
+                string password = config["RabbitMQ:Password"];
+
+                await using var publisher = new PiranhaEventPublisher(
+                    hostName: hostName,
+                    port: port,
+                    user: username,
+                    pass: password);
+
+                var deleteEvent = new
+                {
+                    Id = Guid.NewGuid(),
+                    Type = "ContentDeleted",
+                    DeletedAt = DateTime.UtcNow,
+                    Page = new
+                    {
+                        PageId = id,
+                        Title = page?.Title,
+                        Slug = page?.Slug
+                    },
+                    Author = new
+                    {
+                        Id = userId,
+                        Name = userName,
+                        Email = userEmail
+                    }
+                };
+
+                await publisher.PublishAsync(@event: deleteEvent, routingKey: "content.deleted");
+
+                _securityLogger.LogInformation("User {UserId} deleted page {PageId}", userId, id);
+                Console.WriteLine($"Delete event published for page {id} with title '{page?.Title}'");
+
+                return new StatusMessage
+                {
+                    Type = StatusMessage.Success,
+                    Body = _localizer.Page["The page was successfully deleted and event was published"]
+                };
+            }
+
+            // Deleted, but no event sent
             return new StatusMessage
             {
-                Type = StatusMessage.Success,
-                Body = _localizer.Page["The page was successfully deleted"]
+                Type = StatusMessage.Warning,
+                Body = _localizer.Page["The page was successfully deleted, but no event was published"]
             };
         }
         catch (ValidationException e)
         {
-            // Validation did not succeed
             return new StatusMessage
             {
                 Type = StatusMessage.Error,
@@ -521,7 +561,7 @@ public class PageApiController : Controller
             return new StatusMessage
             {
                 Type = StatusMessage.Error,
-                Body = _localizer.Page["An error occured while deleting the page"]
+                Body = _localizer.Page["An error occurred while deleting the page"]
             };
         }
     }
