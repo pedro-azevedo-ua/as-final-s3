@@ -272,7 +272,7 @@ public class PageApiController : Controller
                     var secureEvent = new SecureContentEvent
                     {
                         Id = page.Id,
-                        Name = "Content Update",
+                        Name = "New Content Published",
                         CreatedAt = DateTime.UtcNow,
                         Content = new ContentData
                         {
@@ -349,8 +349,108 @@ public class PageApiController : Controller
         var ret = await Save(model, true);
         await _hub?.Clients.All.SendAsync("Update", model.Id);
 
+        try
+        {
+            var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+
+            string hostName = config["RabbitMQ:HostName"];
+            int port = int.Parse(config["RabbitMQ:Port"]);
+            string username = config["RabbitMQ:UserName"];
+            string password = config["RabbitMQ:Password"];
+            string signingKey = config["Security:MessageSigningKey"];
+
+            _eventLogger.LogInformation("Initiating draft save event for page {PageId}", model.Id);
+
+            await using var publisher = new PiranhaEventPublisher(
+                hostName: hostName,
+                port: port,
+                user: username,
+                pass: password);
+
+            var page = await _api.Pages.GetByIdAsync(model.Id);
+
+            var regions = page.Regions as IDictionary<string, object>;
+            if (regions != null && regions.TryGetValue("PublishEvents", out var publishObj))
+            {
+                var valueProp = publishObj?.GetType().GetProperty("Value");
+                var value = valueProp?.GetValue(publishObj);
+                bool shouldPublish = value is bool b && b;
+
+                if (shouldPublish)
+                {
+                    var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    var userName = User.Identity?.Name;
+                    var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+
+                    var secureEvent = new SecureContentEvent
+                    {
+                        Id = page.Id,
+                        Name = "Content Draft Saved and Updated",
+                        CreatedAt = DateTime.UtcNow,
+                        Content = new ContentData
+                        {
+                            Title = page.Title,
+                            Slug = page.Slug,
+                            Type = page.TypeId,
+                            Regions = ((IDictionary<string, object>)page.Regions).ToDictionary(r => r.Key, r => r.Value)
+                        },
+                        Author = new AuthorData
+                        {
+                            Name = userName,
+                            Email = email
+                        },
+                        HashedUserId = MessageSecurityHelper.HashUserId(userId)
+                    };
+
+                    secureEvent.Signature = MessageSecurityHelper.ComputeHmacSignature(secureEvent, signingKey);
+
+                    string routingKey = "content.draft";
+                    await publisher.PublishAsync(@event: secureEvent, routingKey: routingKey);
+
+                    _securityLogger.LogInformation("User {UserId} saved draft with event for page {PageId}", userId, model.Id);
+
+                    ret.Status = new StatusMessage
+                    {
+                        Type = StatusMessage.Success,
+                        Body = _localizer.Page["The draft was successfully saved and event was published"]
+                    };
+                }
+                else
+                {
+                    _eventLogger.LogInformation("PublishEvents is false — skipping event publishing for page {PageId}", model.Id);
+
+                    ret.Status = new StatusMessage
+                    {
+                        Type = StatusMessage.Warning,
+                        Body = _localizer.Page["The draft was successfully saved, but no event was published"]
+                    };
+                }
+            }
+            else
+            {
+                ret.Status = new StatusMessage
+                {
+                    Type = StatusMessage.Warning,
+                    Body = _localizer.Page["The draft was successfully saved, but event conditions were not met"]
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _eventLogger.LogError(ex, "Failed to publish draft save event for page {PageId}", model.Id);
+            _systemLogger.LogCritical("Draft event publishing failure: {Error}", ex.Message);
+
+            ret.Status = new StatusMessage
+            {
+                Type = StatusMessage.Error,
+                Body = _localizer.Page["An error occurred while saving the draft"]
+            };
+        }
+
         return ret;
     }
+
+
 
     /// <summary>
     /// Saves the given model and unpublishes it

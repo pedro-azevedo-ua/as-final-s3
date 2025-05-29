@@ -33,7 +33,7 @@ namespace ContentsRUs.Eventing.Listener
          IConfiguration config,
          ILogger<ExternalEventListenerService> logger
         )
-            {
+        {
             _serviceProvider = serviceProvider;
             _logger = logger;
 
@@ -63,6 +63,8 @@ namespace ContentsRUs.Eventing.Listener
                 _connection = await _factory.CreateConnectionAsync(cancellationToken);
                 _channel = await _connection.CreateChannelAsync();
 
+                _logger.LogDebug("Connection and channel successfully created.");
+
                 // Setup exchange, queue and binding
                 await _channel.ExchangeDeclareAsync(
                     exchange: _exchange,
@@ -70,16 +72,23 @@ namespace ContentsRUs.Eventing.Listener
                     durable: false,
                     autoDelete: false);
 
+                _logger.LogDebug("Exchange '{Exchange}' declared.", _exchange);
+
                 await _channel.QueueDeclareAsync(
                     queue: _queueName,
                     durable: false,
                     exclusive: false,
                     autoDelete: false);
 
+                _logger.LogDebug("Queue '{Queue}' declared.", _queueName);
+
                 await _channel.QueueBindAsync(
                     queue: _queueName,
                     exchange: _exchange,
                     routingKey: _routingKey);
+
+                _logger.LogDebug("Queue '{Queue}' bound to exchange '{Exchange}' with routing key '{RoutingKey}'.",
+                    _queueName, _exchange, _routingKey);
 
                 // Create and configure consumer
                 _consumer = new AsyncEventingBasicConsumer(_channel);
@@ -91,18 +100,21 @@ namespace ContentsRUs.Eventing.Listener
                     autoAck: false, // Use manual acknowledgment for reliability
                     consumer: _consumer);
 
-                _logger.LogInformation("External Event Listener started. Listening for messages with routing key: {RoutingKey}", _routingKey);
-                Console.WriteLine($"[ExternalEventListenerService] RExternal Event Listener started. Listening for messages with routing key {_routingKey}");
+                _logger.LogInformation("External Event Listener started. Listening for messages on queue '{Queue}' with routing key '{RoutingKey}'.",
+                    _queueName, _routingKey);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error starting External Event Listener Service");
+
                 // Clean up on error
                 _channel?.Dispose();
                 _connection?.Dispose();
-                throw;
+
+                throw; // Rethrow to allow the host to handle lifecycle
             }
         }
+
 
         private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs ea)
         {
@@ -111,28 +123,23 @@ namespace ContentsRUs.Eventing.Listener
             var routingKey = ea.RoutingKey;
 
             _logger.LogInformation("Received message with routing key: {RoutingKey}", routingKey);
-            Console.WriteLine($"[ExternalEventListenerService] Received message with routing key: {routingKey}");
 
             SecureContentEvent secureEvent;
             try
             {
                 secureEvent = JsonConvert.DeserializeObject<SecureContentEvent>(message);
-               
             }
             catch (JsonException ex)
             {
-                _logger.LogInformation(ex, "Received invalid JSON message: {Message}", message);
+                _logger.LogWarning(ex, "Invalid JSON message received: {RawMessage}", message);
                 await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
                 return;
             }
-            Console.WriteLine($"[ExternalEventListenerService] secureEvent.Signature: {secureEvent?.Signature}");
-            // Get signing key from config
+
             var signingKey = _config["Security:MessageSigningKey"];
-            Console.WriteLine($"[ExternalEventListenerService] signingKey: {signingKey}");
             if (string.IsNullOrEmpty(signingKey))
             {
-                Console.WriteLine($"[ExternalEventListenerService] signing key missing in configuration. Cannot validate message signature.");
-                _logger.LogInformation("Signing key missing in configuration. Cannot validate message signature.");
+                _logger.LogWarning("Signing key missing in configuration. Cannot validate message signature.");
                 await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
                 return;
             }
@@ -140,14 +147,11 @@ namespace ContentsRUs.Eventing.Listener
             try
             {
                 bool isValid = MessageSecurityHelper.VerifyHmacSignature(secureEvent, secureEvent.Signature, signingKey);
-                Console.WriteLine($"[ExternalEventListenerService] signature valid? {isValid}");
                 if (!isValid)
                 {
-                    Console.WriteLine($"[ExternalEventListenerService] signature invalid");
-                    _logger.LogInformation(
-                  "Rejected message with invalid signature. EventId: {EventId}, HashedUserId: {HashedUserId}, RoutingKey: {RoutingKey}",
-                  secureEvent.Id, secureEvent.HashedUserId, routingKey);
-                    Console.WriteLine($"[ExternalEventListenerService] signature invalid");
+                    _logger.LogWarning(
+                        "Rejected message with invalid signature. EventId: {EventId}, HashedUserId: {HashedUserId}, RoutingKey: {RoutingKey}",
+                        secureEvent.Id, secureEvent.HashedUserId, routingKey);
 
                     await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
                     return;
@@ -155,60 +159,72 @@ namespace ContentsRUs.Eventing.Listener
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ExternalEventListenerService] Exception during signature verification: {ex}");
                 _logger.LogError(ex, "Exception during signature verification");
                 await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
                 return;
             }
 
-
-
-            Console.WriteLine($"[ExternalEventListenerService] signature valid");
-
-
             if (!MessageSecurityHelper.ValidateSecureContentEvent(secureEvent, out var validationError))
             {
-                _logger.LogInformation(
+                _logger.LogWarning(
                     "Rejected message due to schema validation error: {ValidationError}. EventId: {EventId}, RoutingKey: {RoutingKey}",
                     validationError, secureEvent?.Id, routingKey);
-                Console.WriteLine($"[ExternalEventListenerService] validation error: {validationError}");
 
                 await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
                 return;
             }
 
-            Console.WriteLine($"[ExternalEventListenerService] validation ok: {secureEvent?.Id} - {secureEvent?.Name}");
-            // Log accepted and process
-            _logger.LogInformation("Accepted message. EventId: {EventId}, HashedUserId: {HashedUserId}, RoutingKey: {RoutingKey}",
+            _logger.LogInformation(
+                "Accepted message. EventId: {EventId}, HashedUserId: {HashedUserId}, RoutingKey: {RoutingKey}",
                 secureEvent.Id, secureEvent.HashedUserId, routingKey);
+
             // All checks passed, process the event
             await ProcessSecureContentEventAsync(secureEvent, routingKey);
             await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
         }
 
+
         private async Task ProcessSecureContentEventAsync(SecureContentEvent secureEvent, string routingKey)
         {
-            // Use secureEvent.Content, secureEvent.Author, etc.
-            // Route based on secureEvent.Name or routingKey
-            switch (routingKey)
+            _logger.LogInformation("Processing event {EventName} with routing key: {RoutingKey}", secureEvent?.Name, routingKey);
+
+            try
             {
-                case "content.create":
-                    await CreateContentAsync(secureEvent.Content, secureEvent.Author);
-                    break;
-                case "content.update":
-                    await UpdateContentAsync(secureEvent.Content, secureEvent.Author);
-                    break;
-                case "content.delete":
-                    if (secureEvent.Content != null && !string.IsNullOrWhiteSpace(secureEvent.Content.Title))
-                        await DeleteContentByTitleAsync(secureEvent.Content.Title);
-                    else
-                        _logger.LogWarning("Delete event received without a title.");
-                    break;
-                default:
-                    _logger.LogWarning("Unknown routing key: {RoutingKey}", routingKey);
-                    break;
+                switch (routingKey)
+                {
+                    case "content.create":
+                        _logger.LogDebug("Invoking content creation handler for title: {Title}", secureEvent?.Content?.Title);
+                        await CreateContentAsync(secureEvent.Content, secureEvent.Author);
+                        break;
+
+                    case "content.update":
+                        _logger.LogDebug("Invoking content update handler for title: {Title}", secureEvent?.Content?.Title);
+                        await UpdateContentAsync(secureEvent.Content, secureEvent.Author);
+                        break;
+
+                    case "content.delete":
+                        if (secureEvent.Content != null && !string.IsNullOrWhiteSpace(secureEvent.Content.Title))
+                        {
+                            _logger.LogDebug("Invoking content delete handler for title: {Title}", secureEvent.Content.Title);
+                            await DeleteContentByTitleAsync(secureEvent.Content.Title);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Delete event received without a valid title. EventId: {EventId}", secureEvent?.Id);
+                        }
+                        break;
+
+                    default:
+                        _logger.LogWarning("Received event with unknown routing key: {RoutingKey}. EventId: {EventId}", routingKey, secureEvent?.Id);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing event {EventName} with routing key: {RoutingKey}", secureEvent?.Name, routingKey);
             }
         }
+
 
         private async Task CreateContentAsync(ContentData content, AuthorData author)
         {
@@ -260,7 +276,7 @@ namespace ContentsRUs.Eventing.Listener
             //Console.WriteLine($"[ExternalEventListenerService] Updating content: {title}");
 
             // Exemplo de código com Piranha API (se for injetada no construtor)
-            
+
             //var page = await _api.Pages.GetByIdAsync(data.id);
             //if (page != null)
             //{
