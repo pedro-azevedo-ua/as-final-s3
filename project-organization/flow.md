@@ -312,7 +312,7 @@ How to Verify
     docker compose -f docker-compose.observability.yml up -d
     ```
 
-  - Access to Prometheus ans Grafana:
+  - Access to Prometheus and Grafana:
     - Prometheus: http://localhost:9090
     - Grafana: http://localhost:3000
       - Login: ``admin/admin``
@@ -326,4 +326,4 @@ How to Verify
     - It is possible now to:
       - Create dashboards
       - Import public dashboards
-      - Visualize metrics like: ``http_requests_total``, ``dotnet_gc_collection_count``, etc
+      - Visualize metrics, like: ``http_requests_total``, ``dotnet_gc_collection_count``, etc
