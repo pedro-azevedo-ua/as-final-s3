@@ -130,6 +130,44 @@ volumes:
   - created the sender.js to send messages to the broker
 - To see it working:
 
+  ### 2.2 Define inbound DTO (`PromotionUpdatedEvent`) & log on receipt
+
+  - Created new event DTO:
+    - File: ContentsRUs.Eventing.Models/DomainEvent.cs
+    - Proporties included:
+      - Guid EventId
+      - string ModelName
+      - string Action
+      - EventDetails Payload:
+        - From another class EventDetails with:
+          - string Title
+          - string Description
+          - object Body
+      - DateTime Timestamp
+
+  - Updated ExternalEventListenerService.cs in ContentsRus.Eventing.Listener:
+    - Added switch case for routing key "content.#"
+    - Deserializes the message body into a DomainEvent object
+    - Logs the received event details using ILogger
+
+  - How to test:
+    - RabbitMQ running in docker
+    - Run MvcWeb examples:
+      - ``dotnet run --framework net8.0``
+    - In RabbitMQ UI, go to piranha.external.events and publish a JSON message, like:
+      - Routing key: content.#
+      - Payload:
+        - ``{``
+            ``  "EventId": "b7e6d63b-8f61-426c-b2c4-77181a0e7db9",``
+            ``  "ModelName": "page",``
+            ``  "Action": "create",``
+            ``  "Payload: {``
+            ``    ...       ``
+            ``   },``
+            ``  "Timestamp": "2025-05-21T14:10:00Z"``    
+          ``}``
+    - And you should see the logs in the terminal or CMS log file
+
   ### 2.5 Hook into Piranha Publish Events
 
   ### Logs
