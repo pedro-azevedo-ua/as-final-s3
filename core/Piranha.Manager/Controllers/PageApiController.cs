@@ -44,12 +44,15 @@ public class PageApiController : Controller
     private readonly ILogger<PageApiController> _systemLogger;
     private readonly ILogger _eventLogger;
     private readonly ILogger _securityLogger;
+    private readonly IPiranhaEventPublisher _eventPublisher;
+    private readonly IConfiguration _config;
 
     /// <summary>
     /// Default constructor.
     /// </summary>
     public PageApiController(PageService service, IApi api, ManagerLocalizer localizer, IHubContext<Hubs.PreviewHub> hub, IAuthorizationService auth,
          ILogger<PageApiController> systemLogger,
+         IPiranhaEventPublisher eventPublisher,
         ILoggerFactory loggerFactory)
     {
         _service = service;
@@ -60,6 +63,8 @@ public class PageApiController : Controller
         _systemLogger = systemLogger;
         _eventLogger = loggerFactory.CreateLogger("Eventing.RabbitMQ");
         _securityLogger = loggerFactory.CreateLogger("Security.Audit");
+        _eventPublisher = eventPublisher;
+        _config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
     }
 
     /// <summary>
@@ -238,22 +243,9 @@ public class PageApiController : Controller
 
         try
         {
-            var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
-
-            string hostName = config["RabbitMQ:HostName"];
-            int port = int.Parse(config["RabbitMQ:Port"]);
-            string username = config["RabbitMQ:UserName"];
-            string password = config["RabbitMQ:Password"];
-            string signingKey = config["Security:MessageSigningKey"];
-
             _eventLogger.LogInformation("Initiating content update event for page {PageId}", model.Id);
 
-            await using var publisher = new PiranhaEventPublisher(
-                hostName: hostName,
-                port: port,
-                user: username,
-                pass: password);
-
+         
             var page = await _api.Pages.GetByIdAsync(model.Id);
 
             var regions = page.Regions as IDictionary<string, object>;
@@ -265,9 +257,9 @@ public class PageApiController : Controller
 
                 if (shouldPublish)
                 {
-                    var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                     var userName = User.Identity?.Name;
-                    var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                    var email = User.FindFirst(ClaimTypes.Email)?.Value;
 
                     var secureEvent = new SecureContentEvent
                     {
@@ -289,10 +281,11 @@ public class PageApiController : Controller
                         HashedUserId = MessageSecurityHelper.HashUserId(userId)
                     };
 
+                    var signingKey = _config["Security:MessageSigningKey"];
                     secureEvent.Signature = MessageSecurityHelper.ComputeHmacSignature(secureEvent, signingKey);
 
-                    string routingKey = "content.test";
-                    await publisher.PublishAsync(@event: secureEvent, routingKey: routingKey);
+                    string routingKey = _config["RabbitMQ:PublishRoutingKey"]; ;
+                    await _eventPublisher.PublishAsync(secureEvent, routingKey);
 
                     Console.WriteLine($"Message Sent");
                     _securityLogger.LogInformation("User {UserId} published page {PageId}", userId, model.Id);
@@ -341,6 +334,7 @@ public class PageApiController : Controller
     /// </summary>
     /// <param name="model">The model</param>
     /// <returns>The result of the operation</returns>
+    /// <returns>The result of the operation</returns>
     [Route("save/draft")]
     [HttpPost]
     [Authorize(Policy = Permission.PagesSave)]
@@ -351,21 +345,7 @@ public class PageApiController : Controller
 
         try
         {
-            var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
-
-            string hostName = config["RabbitMQ:HostName"];
-            int port = int.Parse(config["RabbitMQ:Port"]);
-            string username = config["RabbitMQ:UserName"];
-            string password = config["RabbitMQ:Password"];
-            string signingKey = config["Security:MessageSigningKey"];
-
             _eventLogger.LogInformation("Initiating draft save event for page {PageId}", model.Id);
-
-            await using var publisher = new PiranhaEventPublisher(
-                hostName: hostName,
-                port: port,
-                user: username,
-                pass: password);
 
             var page = await _api.Pages.GetByIdAsync(model.Id);
 
@@ -402,10 +382,12 @@ public class PageApiController : Controller
                         HashedUserId = MessageSecurityHelper.HashUserId(userId)
                     };
 
+                    // Get signing key from injected config
+                    var signingKey = _config["Security:MessageSigningKey"];
                     secureEvent.Signature = MessageSecurityHelper.ComputeHmacSignature(secureEvent, signingKey);
 
-                    string routingKey = "content.draft";
-                    await publisher.PublishAsync(@event: secureEvent, routingKey: routingKey);
+                    string routingKey = _config["RabbitMQ:DraftRoutingKey"] ?? "content.draft.saved";
+                    await _eventPublisher.PublishAsync(secureEvent, routingKey);
 
                     _securityLogger.LogInformation("User {UserId} saved draft with event for page {PageId}", userId, model.Id);
 
@@ -452,6 +434,7 @@ public class PageApiController : Controller
 
 
 
+
     /// <summary>
     /// Saves the given model and unpublishes it
     /// </summary>
@@ -462,7 +445,6 @@ public class PageApiController : Controller
     [Authorize(Policy = Permission.PagesPublish)]
     public async Task<PageEditModel> SaveUnpublish(PageEditModel model)
     {
-
         // Remove published date
         model.Published = null;
 
@@ -472,21 +454,7 @@ public class PageApiController : Controller
 
         try
         {
-            var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
-
-            string hostName = config["RabbitMQ:HostName"];
-            int port = int.Parse(config["RabbitMQ:Port"]);
-            string username = config["RabbitMQ:UserName"];
-            string password = config["RabbitMQ:Password"];
-
-            //Log.Information("Connecting to RabbitMQ at {Host}:{Port}", hostName, port);
-
-            await using var publisher = new PiranhaEventPublisher(
-                hostName: hostName,
-                port: port,
-                user: username,
-                pass: password);
-
+            // Create the event payload (customize as needed)
             var testEvent = new
             {
                 Id = Guid.NewGuid(),
@@ -509,17 +477,15 @@ public class PageApiController : Controller
                 }
             };
 
-
             string routingKey = "content.test";
-            await publisher.PublishAsync(
-                @event: testEvent,
-                routingKey: routingKey);
+            await _eventPublisher.PublishAsync(testEvent, routingKey);
 
-            // write in the console the result
             Console.WriteLine($"Event published");
-            _securityLogger.LogInformation("User {UserId} published page {PageId}", User.FindFirst(ClaimTypes.NameIdentifier), model.Id);
-
-
+            _securityLogger.LogInformation(
+                "User {UserId} unpublished page {PageId}",
+                User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                model.Id
+            );
         }
         catch (Exception ex)
         {
@@ -531,12 +497,10 @@ public class PageApiController : Controller
                 Body = _localizer.Page["An error occurred while publishing the page"]
             };
         }
-        finally
-        {
-        }
 
         return ret;
     }
+
 
     [Route("revert")]
     [HttpPost]
@@ -596,17 +560,8 @@ public class PageApiController : Controller
                 var userName = User.Identity?.Name;
                 var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
 
-                var config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
-                string hostName = config["RabbitMQ:HostName"];
-                int port = int.Parse(config["RabbitMQ:Port"]);
-                string username = config["RabbitMQ:UserName"];
-                string password = config["RabbitMQ:Password"];
-
-                await using var publisher = new PiranhaEventPublisher(
-                    hostName: hostName,
-                    port: port,
-                    user: username,
-                    pass: password);
+                // Use config injected into the controller
+                var routingKey = _config["RabbitMQ:DeleteRoutingKey"] ?? "content.deleted";
 
                 var deleteEvent = new
                 {
@@ -627,7 +582,7 @@ public class PageApiController : Controller
                     }
                 };
 
-                await publisher.PublishAsync(@event: deleteEvent, routingKey: "content.deleted");
+                await _eventPublisher.PublishAsync(deleteEvent, routingKey);
 
                 _securityLogger.LogInformation("User {UserId} deleted page {PageId}", userId, id);
                 Console.WriteLine($"Delete event published for page {id} with title '{page?.Title}'");
@@ -665,6 +620,7 @@ public class PageApiController : Controller
             };
         }
     }
+
 
     [Route("move")]
     [HttpPost]

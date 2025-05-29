@@ -11,10 +11,10 @@ const config = {
     username: 'user',
     password: 'password',
     vhost: '/',
-    exchange: 'piranha.external.events',
-    queue: 'piranha.external.queue', // Match your C# queue name
-    routingKeyCreate: 'content.create',
-    routingKeyDelete: 'content.delete'
+    exchange: 'cms.requests',
+    exchangeType: 'topic', // Match your C# setup
+    routingKeyCreate: 'page..create.request',
+    routingKeyDelete: 'page.delete.request'
 };
 
 function createSignature(payload, key) {
@@ -35,10 +35,10 @@ async function sendMessage(routingKey, message) {
     });
     const channel = await conn.createChannel();
 
-   await channel.assertExchange(config.exchange, 'direct', { durable: false });
-   await channel.assertQueue(config.queue, { durable: false });
-   await channel.bindQueue(config.queue, config.exchange, config.routingKey);
-        
+    // Declare exchange as durable
+    await channel.assertExchange(config.exchange, config.exchangeType, { durable: true });
+
+    // Don't declare or bind the queue here unless you need to (let consumers handle it)
 
     channel.publish(
         config.exchange,
@@ -90,11 +90,9 @@ async function sendCreateMessageInteractive() {
     };
 
     const jsonToSign = JSON.stringify(payload);
-    // console.log('JS JSON to sign:', jsonToSign);
     const signature = createSignature(jsonToSign, SIGNING_KEY);
 
-    payload.Signature = signature;
-    // console.log(JSON.stringify(payload, null, 2));
+    payload.signature = signature;
 
     await sendMessage(config.routingKeyCreate, payload);
 }
@@ -105,21 +103,21 @@ async function sendDeleteMessageInteractive() {
     const authorEmail = await ask('Enter author email: ');
 
     const payload = {
-        Id: crypto.randomUUID(),
-        Name: "DeleteContent",
-        CreatedAt: new Date().toISOString(),
-        Content: {
-            Title: title
+        id: crypto.randomUUID(),
+        name: "DeleteContent",
+        createdAt: new Date().toISOString(),
+        content: {
+            title: title
         },
-        Author: {
-            Name: authorName,
-            Email: authorEmail
+        author: {
+            name: authorName,
+            email: authorEmail
         },
-        HashedUserId: crypto.createHash('sha256').update(authorEmail).digest('hex')
+        hashedUserId: crypto.createHash('sha256').update(authorEmail).digest('hex')
     };
 
     const signature = createSignature(JSON.stringify(payload), SIGNING_KEY);
-    payload.Signature = signature;
+    payload.signature = signature;
 
     await sendMessage(config.routingKeyDelete, payload);
 }
@@ -145,7 +143,6 @@ async function main() {
             console.log('Invalid option. Try again.');
         }
     }
-
 }
 
 main();

@@ -18,9 +18,6 @@ namespace ContentsRUs.Eventing.Listener
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<ExternalEventListenerService> _logger;
         private readonly ConnectionFactory _factory;
-        private readonly string _exchange = "piranha.external.events";
-        private readonly string _queueName = "piranha.external.queue";
-        private readonly string _routingKey;
 
         private IConnection _connection;
         private IChannel _channel;
@@ -38,8 +35,7 @@ namespace ContentsRUs.Eventing.Listener
             _logger = logger;
 
             _config = config;
-            _routingKey = config["RabbitMQ:RoutingKey"] ?? "content.#"; // Default routing key if not configured
-            //_api = api;
+            
 
             _factory = new ConnectionFactory
             {
@@ -50,7 +46,6 @@ namespace ContentsRUs.Eventing.Listener
                 Port = config.GetValue<int>("RabbitMQ:Port", 5672),
             };
 
-            Console.WriteLine($"[ExternalEventListenerService] Using RabbitMQ host: {_factory.HostName}, port: {_factory.Port}, user: {_factory.UserName}, routing key: {config["RabbitMQ:RoutingKey"]}");
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -59,61 +54,60 @@ namespace ContentsRUs.Eventing.Listener
 
             try
             {
-                // Create connection and channel
+                var queueArgs = new Dictionary<string, object>
+        {
+            { "x-dead-letter-exchange", _config["RabbitMQ:DeadLetterExchange"] },
+            { "x-dead-letter-routing-key", "dlq" }
+        };
+
                 _connection = await _factory.CreateConnectionAsync(cancellationToken);
-                _channel = await _connection.CreateChannelAsync();
+                _channel = await _connection.CreateChannelAsync(); // or CreateChannelAsync if available
 
                 _logger.LogDebug("Connection and channel successfully created.");
 
-                // Setup exchange, queue and binding
                 await _channel.ExchangeDeclareAsync(
-                    exchange: _exchange,
-                    type: ExchangeType.Direct,
-                    durable: false,
+                    exchange: _config["RabbitMQ:RequestsExchange"],
+                    type: ExchangeType.Topic,
+                    durable: true,
                     autoDelete: false);
-
-                _logger.LogDebug("Exchange '{Exchange}' declared.", _exchange);
 
                 await _channel.QueueDeclareAsync(
-                    queue: _queueName,
-                    durable: false,
+                    queue: _config["RabbitMQ:RequestsQueue"],
+                    durable: true,
                     exclusive: false,
-                    autoDelete: false);
-
-                _logger.LogDebug("Queue '{Queue}' declared.", _queueName);
+                    autoDelete: false,
+                    arguments: queueArgs);
 
                 await _channel.QueueBindAsync(
-                    queue: _queueName,
-                    exchange: _exchange,
-                    routingKey: _routingKey);
+                    queue: _config["RabbitMQ:RequestsQueue"],
+                    exchange: _config["RabbitMQ:RequestsExchange"],
+                    routingKey: _config["RabbitMQ:RequestRoutingKey"]);
 
-                _logger.LogDebug("Queue '{Queue}' bound to exchange '{Exchange}' with routing key '{RoutingKey}'.",
-                    _queueName, _exchange, _routingKey);
+                // Set QoS (prefetch)
+                _channel.BasicQosAsync(0, _config.GetValue<ushort>("RabbitMQ:PrefetchCount", 10), false);
 
-                // Create and configure consumer
                 _consumer = new AsyncEventingBasicConsumer(_channel);
                 _consumer.ReceivedAsync += OnMessageReceivedAsync;
 
-                // Start consuming
                 await _channel.BasicConsumeAsync(
-                    queue: _queueName,
-                    autoAck: false, // Use manual acknowledgment for reliability
+                    queue: _config["RabbitMQ:RequestsQueue"],
+                    autoAck: false,
                     consumer: _consumer);
 
-                _logger.LogInformation("External Event Listener started. Listening for messages on queue '{Queue}' with routing key '{RoutingKey}'.",
-                    _queueName, _routingKey);
+                _logger.LogInformation("External Event Listener started. Listening on queue '{Queue}' with routing key '{RoutingKey}'.",
+                    _config["RabbitMQ:RequestsQueue"], _config["RabbitMQ:RequestRoutingKey"]);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error starting External Event Listener Service");
 
-                // Clean up on error
                 _channel?.Dispose();
                 _connection?.Dispose();
 
-                throw; // Rethrow to allow the host to handle lifecycle
+                throw;
             }
         }
+
 
 
         private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs ea)
@@ -132,7 +126,7 @@ namespace ContentsRUs.Eventing.Listener
             catch (JsonException ex)
             {
                 _logger.LogWarning(ex, "Invalid JSON message received: {RawMessage}", message);
-                await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+                await _channel.BasicNackAsync(ea.DeliveryTag, false, false); // <-- Nack, not Ack
                 return;
             }
 
@@ -140,7 +134,7 @@ namespace ContentsRUs.Eventing.Listener
             if (string.IsNullOrEmpty(signingKey))
             {
                 _logger.LogWarning("Signing key missing in configuration. Cannot validate message signature.");
-                await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+                await _channel.BasicNackAsync(ea.DeliveryTag, false, false); // <-- Nack, not Ack
                 return;
             }
 
@@ -153,14 +147,14 @@ namespace ContentsRUs.Eventing.Listener
                         "Rejected message with invalid signature. EventId: {EventId}, HashedUserId: {HashedUserId}, RoutingKey: {RoutingKey}",
                         secureEvent.Id, secureEvent.HashedUserId, routingKey);
 
-                    await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+                    await _channel.BasicNackAsync(ea.DeliveryTag, false, false); // <-- Nack, not Ack
                     return;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception during signature verification");
-                await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+                await _channel.BasicNackAsync(ea.DeliveryTag, false, false); // <-- Nack, not Ack
                 return;
             }
 
@@ -170,7 +164,7 @@ namespace ContentsRUs.Eventing.Listener
                     "Rejected message due to schema validation error: {ValidationError}. EventId: {EventId}, RoutingKey: {RoutingKey}",
                     validationError, secureEvent?.Id, routingKey);
 
-                await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+                await _channel.BasicNackAsync(ea.DeliveryTag, false, false); // <-- Nack, not Ack
                 return;
             }
 
@@ -180,8 +174,9 @@ namespace ContentsRUs.Eventing.Listener
 
             // All checks passed, process the event
             await ProcessSecureContentEventAsync(secureEvent, routingKey);
-            await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+            await _channel.BasicAckAsync(ea.DeliveryTag, false); // Only ack here!
         }
+
 
 
         private async Task ProcessSecureContentEventAsync(SecureContentEvent secureEvent, string routingKey)
@@ -192,17 +187,17 @@ namespace ContentsRUs.Eventing.Listener
             {
                 switch (routingKey)
                 {
-                    case "content.create":
+                    case "page.create.request":
                         _logger.LogDebug("Invoking content creation handler for title: {Title}", secureEvent?.Content?.Title);
                         await CreateContentAsync(secureEvent.Content, secureEvent.Author);
                         break;
 
-                    case "content.update":
+                    case "page.update.request":
                         _logger.LogDebug("Invoking content update handler for title: {Title}", secureEvent?.Content?.Title);
                         await UpdateContentAsync(secureEvent.Content, secureEvent.Author);
                         break;
 
-                    case "content.delete":
+                    case "page.delete.request":
                         if (secureEvent.Content != null && !string.IsNullOrWhiteSpace(secureEvent.Content.Title))
                         {
                             _logger.LogDebug("Invoking content delete handler for title: {Title}", secureEvent.Content.Title);
@@ -271,20 +266,7 @@ namespace ContentsRUs.Eventing.Listener
 
         private async Task UpdateContentAsync(ContentData content, AuthorData author)
         {
-            //string title = data.Payload.Title;
-            //_logger.LogInformation("Updating content: {Title}", title);
-            //Console.WriteLine($"[ExternalEventListenerService] Updating content: {title}");
-
-            // Exemplo de código com Piranha API (se for injetada no construtor)
-
-            //var page = await _api.Pages.GetByIdAsync(data.id);
-            //if (page != null)
-            //{
-            //    page.Title = data.title;
-            //    page.Body = data.body;
-            //    await _api.Pages.SaveAsync(page);
-            //}
-            //*/
+ 
         }
 
         private async Task DeleteContentByTitleAsync(string title)

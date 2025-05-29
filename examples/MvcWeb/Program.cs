@@ -81,23 +81,19 @@ builder.AddPiranha(options =>
 
 builder.Services.TryDecorate<IPageService, CustomPageService>();
 
-builder.Services.AddSingleton<IPiranhaEventPublisher>(sp =>
-{
-    var config = sp.GetRequiredService<IConfiguration>();
-    return new PiranhaEventPublisher(
-        config["RabbitMQ:HostName"] ?? "localhost",
-        int.Parse(config["RabbitMQ:Port"] ?? "5672"),
-        config["RabbitMQ:UserName"] ?? "user",
-        config["RabbitMQ:Password"] ?? "password"
-    );
-});
+builder.Services.AddSingleton<IPiranhaEventPublisher, PiranhaEventPublisher>();
+builder.Services.AddHostedService<PiranhaPublisherInitializer>();
 
-builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(
-    sp,
-    builder.Configuration,
-    sp.GetRequiredService<ILogger<ExternalEventListenerService>>()
 
-));
+builder.Services.AddHostedService<ExternalEventListenerService>();
+
+
+//builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(
+//    sp,
+//    builder.Configuration,
+//    sp.GetRequiredService<ILogger<ExternalEventListenerService>>()
+
+//));
 
 var app = builder.Build();
 
