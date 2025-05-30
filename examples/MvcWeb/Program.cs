@@ -25,20 +25,6 @@ builder.Host.UseSerilog((context, services, options) =>
         .Enrich.WithMachineName()
         .Enrich.WithProcessId()
         .Enrich.WithThreadId()
-        .WriteTo.Logger(lc => lc
-            .Filter.ByIncludingOnly("SourceContext like '%RabbitMQ%'")
-            .WriteTo.File(
-                path: "Logs/Events/events-.log",
-                rollingInterval: RollingInterval.Day,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] {CorrelationId} {Message}{NewLine}{Exception}")
-        )
-        .WriteTo.Logger(lc => lc
-            .Filter.ByIncludingOnly("SourceContext like '%Security%'")
-            .WriteTo.File(
-                path: "Logs/Security/security-.log",
-                rollingInterval: RollingInterval.Day,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level}] {CorrelationId} {Message}{NewLine}{Exception}")
-        )
         .ReadFrom.Configuration(context.Configuration); // Read from appsettings.json if needed
 });
 
