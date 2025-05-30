@@ -13,7 +13,6 @@ namespace ContentRUs.Eventing.Listener.BackgroundServices
 {
     public class DlqConsumerHostedService : BackgroundService
     {
-        private readonly ILogger<DlqConsumerHostedService> _logger;
         private readonly ILogger _dlqLogger;
 
         private readonly IConfiguration _config;
@@ -24,14 +23,13 @@ namespace ContentRUs.Eventing.Listener.BackgroundServices
         private readonly string _outputDir;
 
 
-        public DlqConsumerHostedService(ILogger<DlqConsumerHostedService> logger, ILoggerFactory loggerFactory, IConfiguration config)
+        public DlqConsumerHostedService(ILoggerFactory loggerFactory, IConfiguration config)
         {
 
             _config = config;
             _outputDir = _config["DlqOutputDirectory"] ?? "dlq-messages";
             Directory.CreateDirectory(_outputDir);
             _dlqLogger = loggerFactory.CreateLogger("Eventing.DLQ");
-            _logger = logger;
             _factory = new ConnectionFactory
             {
                 UserName = _config["RabbitMQ:UserName"] ?? "guest",
@@ -64,7 +62,7 @@ namespace ContentRUs.Eventing.Listener.BackgroundServices
 
             await _channel.BasicConsumeAsync(queue: dlqName, autoAck: false, consumer: _consumer);
 
-            _logger.LogInformation("DLQ consumer started and listening on queue '{Queue}'", dlqName);
+            _dlqLogger.LogInformation("DLQ consumer started and listening on queue '{Queue}'", dlqName);
             await base.StartAsync(cancellationToken);
         }
 

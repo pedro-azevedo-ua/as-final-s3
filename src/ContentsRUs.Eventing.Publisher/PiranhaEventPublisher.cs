@@ -1,8 +1,6 @@
 ﻿using RabbitMQ.Client;
 using System.Text;
 using Newtonsoft.Json;
-using Serilog;
-using Serilog.Context;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -15,11 +13,11 @@ namespace ContentsRUs.Eventing.Publisher
         private IChannel _channel;
         private readonly string _exchange;
         private readonly string _exchangeType;
-        private readonly ILogger<PiranhaEventPublisher> _logger;
+        private readonly ILogger _publisherLogger;
 
-        public PiranhaEventPublisher(IConfiguration config, ILogger<PiranhaEventPublisher> logger)
+        public PiranhaEventPublisher(IConfiguration config, ILoggerFactory loggerFactory)
         {
-            _logger = logger;
+            _publisherLogger = loggerFactory.CreateLogger("Eventing.Publisher");
             _factory = new ConnectionFactory
             {
                 HostName = config["RabbitMQ:HostName"],
@@ -41,7 +39,6 @@ namespace ContentsRUs.Eventing.Publisher
             _channel = await _connection.CreateChannelAsync();
 
             await _channel.ExchangeDeclareAsync(_exchange, _exchangeType, durable: true, autoDelete: false);
-
         }
 
         public async Task PublishAsync<T>(T @event, string routingKey)
@@ -56,8 +53,6 @@ namespace ContentsRUs.Eventing.Publisher
 
             byte[] body = Encoding.UTF8.GetBytes(jsonData);
 
-            
-
             var props = new BasicProperties
             {
                 ContentType = "application/json",
@@ -66,19 +61,15 @@ namespace ContentsRUs.Eventing.Publisher
                 Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
             };
 
-           
-
-            _logger.LogInformation("Publishing event to exchange '{Exchange}' with routing key '{RoutingKey}'", _exchange, routingKey);
+            _publisherLogger.LogInformation("Publishing event to exchange '{Exchange}' with routing key '{RoutingKey}'", _exchange, routingKey);
             try
             {
-                // Await the publish task for confirmation
                 await _channel.BasicPublishAsync(_exchange, routingKey, true, props, body);
-
-                _logger.LogInformation("Message published and confirmed by broker.");
+                _publisherLogger.LogInformation("Message published and confirmed by broker.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to publish or confirm message");
+                _publisherLogger.LogError(ex, "Failed to publish or confirm message");
                 throw;
             }
         }
@@ -97,5 +88,4 @@ namespace ContentsRUs.Eventing.Publisher
             }
         }
     }
-
 }

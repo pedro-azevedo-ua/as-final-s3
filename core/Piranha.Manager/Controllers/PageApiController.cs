@@ -53,7 +53,7 @@ public class PageApiController : Controller
     public PageApiController(PageService service, IApi api, ManagerLocalizer localizer, IHubContext<Hubs.PreviewHub> hub, IAuthorizationService auth,
          ILogger<PageApiController> systemLogger,
          IPiranhaEventPublisher eventPublisher,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory, IConfiguration config)
     {
         _service = service;
         _api = api;
@@ -64,7 +64,7 @@ public class PageApiController : Controller
         _eventLogger = loggerFactory.CreateLogger("Eventing.RabbitMQ");
         _securityLogger = loggerFactory.CreateLogger("Security.Audit");
         _eventPublisher = eventPublisher;
-        _config = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+        _config = config;
     }
 
     /// <summary>

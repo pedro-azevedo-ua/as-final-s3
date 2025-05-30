@@ -132,7 +132,9 @@ volumes:
 
   ### 2.2 Define inbound DTO (`PromotionUpdatedEvent`) & log on receipt
 
+
   - Created new event DTO:
+
     - File: ContentsRUs.Eventing.Models/DomainEvent.cs
     - Proporties included:
       - Guid EventId
@@ -144,13 +146,13 @@ volumes:
           - string Description
           - object Body
       - DateTime Timestamp
-
   - Updated ExternalEventListenerService.cs in ContentsRus.Eventing.Listener:
+
     - Added switch case for routing key "content.#"
     - Deserializes the message body into a DomainEvent object
     - Logs the received event details using ILogger
-
   - How to test:
+
     - RabbitMQ running in docker
     - Run MvcWeb examples:
       - ``dotnet run --framework net8.0``
@@ -174,7 +176,6 @@ volumes:
 
   ### Logs
 
-
   - RabbitMQ running in docker
   - Run MvcWeb examples:
 
@@ -194,8 +195,6 @@ volumes:
     `"Serilog": { "Using": ["Serilog.Sinks.File"], "MinimumLevel": { "Default": "Information", "Override": { "Microsoft": "Warning", ... "Name": "ByIncludingOnly", "Args": { "expression": "SourceContext like '%Security%'" } } ] } } ] } `
 - Adicionar no PageApiController os logs
 
-
-
 ### 2.x Trigger events from 3rd parties, secure.
 
 - Created ContentRUs.Eventing.Shared:
@@ -211,8 +210,6 @@ volumes:
 
   - add Security - MessageSigningKey
 
-
-
 ### 2.x Serilogs - centralized
 
 - define in the MVC appsettings.json the files and what to include
@@ -221,7 +218,6 @@ volumes:
 - See logs in MvcWeb/logs
 - Applyied some in tge EsternalEventListenerService
 
-
 ### 2.x Piranha Page CheckBox to enable Outbound subscription
 
 What Was Planned
@@ -229,6 +225,7 @@ What Was Planned
 Under **Settings** in the Piranha admin, a new **"Eventing"** section would be created.
 
 This section would list **all page types or content models**, each with two toggles:
+
 - **“Publish on save”** – controls outbound event publishing
 - **“Subscribe to inbound”** – enables inbound message processing
 
@@ -262,15 +259,36 @@ How to Verify
 - Set `PublishEvents = true`, then save — an outbound event **is published** to RabbitMQ.
 - Deleting a page follows the same logic — event only published if `PublishEvents == true`.
 
+### 3.X Improved RabbitMQ and implemented Dead-Letter-Queue
+
+
+feat(rabbitmq): robust event publishing & consuming for page lifecycle
+
+* Implemented .NET event publisher library with DI, async init, and durable publishing for page events (publish, draft, unpublish, delete)
+* Refactored MVC controllers to use injected publisher and config-based routing keys
+* Standardized event payload structure and signing across .NET and Node.js
+* Improved Node.js producer for durable exchange, config-driven routing, and HMAC signatures
+* Developed flexible Node.js consumer: supports CLI selection of event types (page.published, page.deleted, page.draft), durable queue/exchange, and detailed logging
+* Centralized RabbitMQ connection and routing config in appsettings.json and JS config
+* Modified the  `ExternalEventListenerService` in order to redirect bad messages to the dead letter queue.
+* Developed a service to listen to dead letters and log in a file, `ContentRus.Eventing.Listener/BackgrounfServices/DlqConsumerHostedService`
+* Added badMessage to js producer to easy testing
+
+### 3.X More logs
+
+Improved serilog to have files for publishing, listening and dead letter queues
+
 ### 3.X Create Prometheus and Grafana containers
 
 - Install the packet Prometeus for ASP.NET Core:
   - On the MvcWeb folder execute:
+
     ```
     dotnet add package prometheus-net.AspNetCore
     ```
   - Expose endpoint ``/metrics`` with some changes in ``Program.cs``, like ``endpoints.MapMetrics()``
   - Creation of the Observability folder and a file named ``prometheus.yml``:
+
     ```yml
     global:
     scrape_interval: 5s
@@ -281,6 +299,7 @@ How to Verify
           - targets: ['host.docker.internal:5000']
     ```
   - Create docker-compose.observability.yml:
+
     ```yml
     version: '3.8'
 
@@ -306,24 +325,26 @@ How to Verify
     volumes:
       grafana-storage:
     ```
-
   - Up the containers:
+
     ```
     docker compose -f docker-compose.observability.yml up -d
     ```
-
   - Access to Prometheus and Grafana:
+
     - Prometheus: http://localhost:9090
     - Grafana: http://localhost:3000
       - Login: ``admin/admin``
-
   - Configure Grafana with Prometheus:
+
     - Open Grafana
     - Go to Settings > Data Sources > Add data source
     - Choice Prometheus
+
       - In URL, put http://localhost:9090
     - Click Save & Test
     - It is possible now to:
+
       - Create dashboards
       - Import public dashboards
       - Visualize metrics, like: ``http_requests_total``, ``dotnet_gc_collection_count``, etc
