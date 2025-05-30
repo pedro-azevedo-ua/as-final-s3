@@ -11,6 +11,7 @@ using ContentsRUs.Eventing.Publisher;
 using MvcWeb.Services;
 using Serilog;
 using Serilog.Context;
+using ContentRUs.Eventing.Listener.BackgroundServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -86,6 +87,8 @@ builder.Services.AddHostedService<PiranhaPublisherInitializer>();
 
 
 builder.Services.AddHostedService<ExternalEventListenerService>();
+builder.Services.AddHostedService<DlqConsumerHostedService>();
+
 
 
 //builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(

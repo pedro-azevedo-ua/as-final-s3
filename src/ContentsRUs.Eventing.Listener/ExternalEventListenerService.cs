@@ -61,7 +61,7 @@ namespace ContentsRUs.Eventing.Listener
         };
 
                 _connection = await _factory.CreateConnectionAsync(cancellationToken);
-                _channel = await _connection.CreateChannelAsync(); // or CreateChannelAsync if available
+                _channel = await _connection.CreateChannelAsync(); 
 
                 _logger.LogDebug("Connection and channel successfully created.");
 

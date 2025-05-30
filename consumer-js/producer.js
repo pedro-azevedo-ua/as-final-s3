@@ -13,7 +13,7 @@ const config = {
     vhost: '/',
     exchange: 'cms.requests',
     exchangeType: 'topic', // Match your C# setup
-    routingKeyCreate: 'page..create.request',
+    routingKeyCreate: 'page.create.request',
     routingKeyDelete: 'page.delete.request'
 };
 
