@@ -13,6 +13,8 @@ using Serilog;
 using Serilog.Context;
 using ContentRUs.Eventing.Listener.BackgroundServices;
 
+using Prometheus;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog((context, services, options) =>
@@ -102,6 +104,7 @@ var app = builder.Build();
 
 
 
+// Middleware for correlation ID:
 app.Use(async (context, next) =>
 {
     var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault() ?? Guid.NewGuid().ToString();
@@ -116,6 +119,11 @@ if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
 }
+
+// Add the middleware to collect Prometheus metrics
+app.UseHttpMetrics();
+
+app.UseRouting(); // <-- necessary to use endpoints after
 
 app.UsePiranha(options =>
 {
@@ -134,6 +142,12 @@ app.UsePiranha(options =>
     options.UseManager();
     options.UseTinyMCE();
     options.UseIdentity();
+});
+
+// Map the endpoint to metrics (/metrics)
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapMetrics();
 });
 
 app.Run();

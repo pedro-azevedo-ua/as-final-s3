@@ -157,15 +157,17 @@ volumes:
     - In RabbitMQ UI, go to piranha.external.events and publish a JSON message, like:
       - Routing key: content.#
       - Payload:
-        - ``{``
-            ``  "EventId": "b7e6d63b-8f61-426c-b2c4-77181a0e7db9",``
-            ``  "ModelName": "page",``
-            ``  "Action": "create",``
-            ``  "Payload: {``
-            ``    ...       ``
-            ``   },``
-            ``  "Timestamp": "2025-05-21T14:10:00Z"``    
-          ``}``
+        ```
+          {
+            "EventId": "b7e6d63b-8f61-426c-b2c4-77181a0e7db9",
+            "ModelName": "page",
+            "Action": "create",
+            "Payload: {
+              ...
+             },
+            "Timestamp": "2025-05-21T14:10:00Z" 
+          }
+        ```
     - And you should see the logs in the terminal or CMS log file
 
   ### 2.5 Hook into Piranha Publish Events
@@ -259,3 +261,69 @@ How to Verify
 - Create or edit a page with `PublishEvents = false`, then save — **no outbound event** is published.
 - Set `PublishEvents = true`, then save — an outbound event **is published** to RabbitMQ.
 - Deleting a page follows the same logic — event only published if `PublishEvents == true`.
+
+### 3.X Create Prometheus and Grafana containers
+
+- Install the packet Prometeus for ASP.NET Core:
+  - On the MvcWeb folder execute:
+    ```
+    dotnet add package prometheus-net.AspNetCore
+    ```
+  - Expose endpoint ``/metrics`` with some changes in ``Program.cs``, like ``endpoints.MapMetrics()``
+  - Creation of the Observability folder and a file named ``prometheus.yml``:
+    ```yml
+    global:
+    scrape_interval: 5s
+
+    scrape_configs:
+      - job_name: 'piranha_app'
+        static_configs:
+          - targets: ['host.docker.internal:5000']
+    ```
+  - Create docker-compose.observability.yml:
+    ```yml
+    version: '3.8'
+
+    services:
+      prometheus:
+        image: prom/prometheus:latest
+        container_name: prometheus
+        volumes:
+          - ./prometheus.yml:/etc/prometheus/prometheus.yml
+        command:
+          - --config.file=/etc/prometheus/prometheus.yml
+        ports:
+          - "9090:9090"
+
+      grafana:
+        image: grafana/grafana:latest
+        container_name: grafana
+        ports:
+          - "3000:3000"
+        volumes:
+          - grafana-storage:/var/lib/grafana
+
+    volumes:
+      grafana-storage:
+    ```
+
+  - Up the containers:
+    ```
+    docker compose -f docker-compose.observability.yml up -d
+    ```
+
+  - Access to Prometheus and Grafana:
+    - Prometheus: http://localhost:9090
+    - Grafana: http://localhost:3000
+      - Login: ``admin/admin``
+
+  - Configure Grafana with Prometheus:
+    - Open Grafana
+    - Go to Settings > Data Sources > Add data source
+    - Choice Prometheus
+      - In URL, put http://localhost:9090
+    - Click Save & Test
+    - It is possible now to:
+      - Create dashboards
+      - Import public dashboards
+      - Visualize metrics, like: ``http_requests_total``, ``dotnet_gc_collection_count``, etc
