@@ -1,0 +1,48 @@
+{
+  "Metadata": {
+    "RoutingKey": "dlq",
+    "Exchange": "cms.dlx",
+    "ContentType": "application/json",
+    "MessageId": null,
+    "Timestamp": 0,
+    "Headers": {
+      "x-death": [
+        {
+          "count": 1,
+          "reason": "cmVqZWN0ZWQ=",
+          "queue": "Y21zLnJlcXVlc3RzLnByb2Nlc3Nvcg==",
+          "time": {},
+          "exchange": "Y21zLnJlcXVlc3Rz",
+          "routing-keys": [
+            "cGFnZS5jcmVhdGUucmVxdWVzdA=="
+          ]
+        }
+      ],
+      "x-first-death-exchange": "Y21zLnJlcXVlc3Rz",
+      "x-first-death-queue": "Y21zLnJlcXVlc3RzLnByb2Nlc3Nvcg==",
+      "x-first-death-reason": "cmVqZWN0ZWQ=",
+      "x-last-death-exchange": "Y21zLnJlcXVlc3Rz",
+      "x-last-death-queue": "Y21zLnJlcXVlc3RzLnByb2Nlc3Nvcg==",
+      "x-last-death-reason": "cmVqZWN0ZWQ="
+    }
+  },
+  "Payload": {
+    "id": "83db5c32-8d63-4dfd-816e-b6871452960f",
+    "name": "CreateContent",
+    "createdAt": "2025-05-30T18:44:12.324Z",
+    "content": {
+      "title": "aa",
+      "slug": "aa",
+      "type": "StandardPage",
+      "regions": {
+        "main": "aa"
+      }
+    },
+    "author": {
+      "name": "aa",
+      "email": "aa"
+    },
+    "hashedUserId": "961b6dd3ede3cb8ecbaacbd68de040cd78eb2ed5889130cceb4c49268ea4d506",
+    "signature": "f0cf2e36177ff4260d9b0ca5cdb0b2aed7fefdaa2e12a7111d66c2a61c52c2c0"
+  }
+}

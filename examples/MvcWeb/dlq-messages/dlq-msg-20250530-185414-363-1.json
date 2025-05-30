@@ -1,0 +1,48 @@
+{
+  "Metadata": {
+    "RoutingKey": "dlq",
+    "Exchange": "cms.dlx",
+    "ContentType": "application/json",
+    "MessageId": null,
+    "Timestamp": 0,
+    "Headers": {
+      "x-death": [
+        {
+          "count": 1,
+          "reason": "cmVqZWN0ZWQ=",
+          "queue": "Y21zLnJlcXVlc3RzLnByb2Nlc3Nvcg==",
+          "time": {},
+          "exchange": "Y21zLnJlcXVlc3Rz",
+          "routing-keys": [
+            "cGFnZS5jcmVhdGUucmVxdWVzdA=="
+          ]
+        }
+      ],
+      "x-first-death-exchange": "Y21zLnJlcXVlc3Rz",
+      "x-first-death-queue": "Y21zLnJlcXVlc3RzLnByb2Nlc3Nvcg==",
+      "x-first-death-reason": "cmVqZWN0ZWQ=",
+      "x-last-death-exchange": "Y21zLnJlcXVlc3Rz",
+      "x-last-death-queue": "Y21zLnJlcXVlc3RzLnByb2Nlc3Nvcg==",
+      "x-last-death-reason": "cmVqZWN0ZWQ="
+    }
+  },
+  "Payload": {
+    "id": "2abd5ac8-703b-456e-b13c-3767c35f6886",
+    "name": "CreateContent",
+    "createdAt": "2025-05-30T18:54:14.115Z",
+    "content": {
+      "title": "Bad Request",
+      "slug": "bad-request",
+      "type": "StandardPage",
+      "regions": {
+        "main": "This is a bad request example."
+      }
+    },
+    "author": {
+      "name": "Test Author",
+      "email": "test@author.com"
+    },
+    "hashedUserId": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "signature": "f703e68b900e0b1669c0a14026407bfdc6f13cd5c4ed6a900115e45b907d6200"
+  }
+}
