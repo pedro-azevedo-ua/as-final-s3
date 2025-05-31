@@ -22,6 +22,7 @@ using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
 using ContentsRUs.Eventing.Shared.Helpers;
 using ContentsRUs.Eventing.Shared.Models;
+using Prometheus;
 
 namespace Piranha.Manager.Controllers;
 
@@ -46,6 +47,42 @@ public class PageApiController : Controller
     private readonly ILogger _securityLogger;
     private readonly IPiranhaEventPublisher _eventPublisher;
     private readonly IConfiguration _config;
+    private static readonly Counter PageSaveRequests = Metrics.CreateCounter(
+        "page_save_requests_total",
+        "Total number of times the save endpoint was called.");
+
+    private static readonly Counter PublishSuccess = Metrics.CreateCounter(
+        "page_save_publish_success_total",
+        "Total number of successful page publish events.");
+
+    private static readonly Counter PublishFailure = Metrics.CreateCounter(
+        "page_save_publish_failure_total",
+        "Total number of failed page publish events.");
+
+    private static readonly Counter PageSaveDraftRequests = Metrics.CreateCounter(
+        "page_save_draft_requests_total",
+        "Total number of times the save draft endpoint was called.");
+
+    private static readonly Counter DraftPublishSuccess = Metrics.CreateCounter(
+        "page_save_draft_publish_success_total",
+        "Total number of successful draft publish events.");
+
+    private static readonly Counter DraftPublishFailure = Metrics.CreateCounter(
+        "page_save_draft_publish_failure_total",
+        "Total number of failed draft publish events.");
+
+    private static readonly Counter PageDeleteRequests = Metrics.CreateCounter(
+        "page_delete_requests_total",
+        "Total number of times the delete endpoint was called.");
+
+    private static readonly Counter DeleteEventSuccess = Metrics.CreateCounter(
+        "page_delete_event_success_total",
+        "Total number of successfully published delete events.");
+
+    private static readonly Counter DeleteEventFailure = Metrics.CreateCounter(
+        "page_delete_event_failure_total",
+        "Total number of failed delete event publications.");
+
 
     /// <summary>
     /// Default constructor.
@@ -230,6 +267,8 @@ public class PageApiController : Controller
     [Authorize(Policy = Permission.PagesPublish)]
     public async Task<PageEditModel> Save(PageEditModel model)
     {
+        PageSaveRequests.Inc();
+
         if (string.IsNullOrEmpty(model.Published))
         {
             model.Published = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
@@ -287,6 +326,8 @@ public class PageApiController : Controller
                     string routingKey = _config["RabbitMQ:PublishRoutingKey"]; ;
                     await _eventPublisher.PublishAsync(secureEvent, routingKey);
 
+                    PublishSuccess.Inc();
+
                     Console.WriteLine($"Message Sent");
                     _securityLogger.LogInformation("User {UserId} published page {PageId}", userId, model.Id);
 
@@ -319,6 +360,7 @@ public class PageApiController : Controller
         {
             _eventLogger.LogError(ex, "Failed to publish event for page {PageId}", model.Id);
             _systemLogger.LogCritical("Event publishing failure: {Error}", ex.Message);
+            PublishFailure.Inc();
             ret.Status = new StatusMessage
             {
                 Type = StatusMessage.Error,
@@ -340,6 +382,8 @@ public class PageApiController : Controller
     [Authorize(Policy = Permission.PagesSave)]
     public async Task<PageEditModel> SaveDraft(PageEditModel model)
     {
+        PageSaveDraftRequests.Inc();
+
         var ret = await Save(model, true);
         await _hub?.Clients.All.SendAsync("Update", model.Id);
 
@@ -389,6 +433,8 @@ public class PageApiController : Controller
                     string routingKey = _config["RabbitMQ:DraftRoutingKey"] ?? "content.draft.saved";
                     await _eventPublisher.PublishAsync(secureEvent, routingKey);
 
+                    DraftPublishSuccess.Inc(); 
+
                     _securityLogger.LogInformation("User {UserId} saved draft with event for page {PageId}", userId, model.Id);
 
                     ret.Status = new StatusMessage
@@ -419,6 +465,7 @@ public class PageApiController : Controller
         }
         catch (Exception ex)
         {
+            DraftPublishFailure.Inc();
             _eventLogger.LogError(ex, "Failed to publish draft save event for page {PageId}", model.Id);
             _systemLogger.LogCritical("Draft event publishing failure: {Error}", ex.Message);
 
@@ -431,8 +478,6 @@ public class PageApiController : Controller
 
         return ret;
     }
-
-
 
 
     /// <summary>
@@ -537,6 +582,8 @@ public class PageApiController : Controller
     [Authorize(Policy = Permission.PagesDelete)]
     public async Task<StatusMessage> Delete([FromBody] Guid id)
     {
+        PageDeleteRequests.Inc();
+
         try
         {
             var page = await _api.Pages.GetByIdAsync(id);
@@ -584,6 +631,8 @@ public class PageApiController : Controller
 
                 await _eventPublisher.PublishAsync(deleteEvent, routingKey);
 
+                DeleteEventSuccess.Inc();
+
                 _securityLogger.LogInformation("User {UserId} deleted page {PageId}", userId, id);
                 Console.WriteLine($"Delete event published for page {id} with title '{page?.Title}'");
 
@@ -611,6 +660,7 @@ public class PageApiController : Controller
         }
         catch (Exception ex)
         {
+            DeleteEventFailure.Inc();
             _eventLogger.LogError(ex, "Failed to delete page {PageId}", id);
             _systemLogger.LogCritical("Event publishing failure: {Error}", ex.Message);
             return new StatusMessage
