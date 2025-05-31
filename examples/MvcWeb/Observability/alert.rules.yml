@@ -1,0 +1,29 @@
+groups:
+  - name: RabbitMQ Alerts
+    rules:
+      - alert: HighDLQMessageCount
+        expr: rabbitmq_queue_messages{queue="cms.dlq"} > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High DLQ Message Count"
+          description: "Dead Letter Queue (cms.dlq) has more than 10 messages for over 1 minute."
+
+      - alert: QueueBacklog
+        expr: rabbitmq_queue_messages_ready > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queue backlog"
+          description: "More than 50 messages ready across one or more queues for over 2 minutes."
+
+      - alert: RabbitMQNodeDown
+        expr: up{job="rabbitmq"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "RabbitMQ Node is Down"
+          description: "Prometheus can't scrape metrics from the RabbitMQ node."
