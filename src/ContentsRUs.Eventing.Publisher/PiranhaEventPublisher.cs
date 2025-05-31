@@ -3,6 +3,9 @@ using System.Text;
 using Newtonsoft.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Prometheus;
+using System;
+using System.Threading.Tasks;
 
 namespace ContentsRUs.Eventing.Publisher
 {
@@ -14,6 +17,14 @@ namespace ContentsRUs.Eventing.Publisher
         private readonly string _exchange;
         private readonly string _exchangeType;
         private readonly ILogger _publisherLogger;
+
+        private static readonly Counter MessagesPublished = Metrics.CreateCounter(
+            "publisher_messages_published_total",
+            "Total number of messages successfully published.");
+
+        private static readonly Counter PublishFailures = Metrics.CreateCounter(
+            "publisher_publish_failures_total",
+            "Total number of failed message publications.");
 
         public PiranhaEventPublisher(IConfiguration config, ILoggerFactory loggerFactory)
         {
@@ -65,10 +76,12 @@ namespace ContentsRUs.Eventing.Publisher
             try
             {
                 await _channel.BasicPublishAsync(_exchange, routingKey, true, props, body);
+                 MessagesPublished.Inc();
                 _publisherLogger.LogInformation("Message published and confirmed by broker.");
             }
             catch (Exception ex)
             {
+                 PublishFailures.Inc();
                 _publisherLogger.LogError(ex, "Failed to publish or confirm message");
                 throw;
             }

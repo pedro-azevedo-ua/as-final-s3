@@ -107,9 +107,9 @@ if (app.Environment.IsDevelopment())
 }
 
 // Add the middleware to collect Prometheus metrics
-app.UseHttpMetrics();
 
 app.UseRouting(); // <-- necessary to use endpoints after
+app.UseHttpMetrics();
 
 app.UsePiranha(options =>
 {

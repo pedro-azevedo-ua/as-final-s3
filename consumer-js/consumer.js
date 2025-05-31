@@ -9,7 +9,7 @@ const config = {
     password: 'password',
     vhost: '/',
     exchange: 'cms.events',
-    exchangeType: 'direct',
+    exchangeType: 'topic',
     queue: 'cms.requests.processor',
     routingKeys: [
         "page.published",
@@ -43,7 +43,14 @@ async function consumeMessages() {
 
         // Durable exchange and queue
         await channel.assertExchange(config.exchange, config.exchangeType, { durable: true });
-        await channel.assertQueue(config.queue, { durable: true });
+        await channel.assertQueue(config.queue, {
+            durable: true,
+            arguments: {
+                'x-dead-letter-exchange': 'cms.dlx',
+                'x-dead-letter-routing-key': 'dlq' 
+            }
+        });
+
 
         // Bind the queue to each selected routing key
         for (const routingKey of listenKeys) {
