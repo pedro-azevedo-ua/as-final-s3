@@ -41,7 +41,7 @@ volumes:
 	rabbitmq_data:
 ```
 
-- Ran the Docker container:
+- Run the Docker container:
 
 ```
 > docker-compose up -d
