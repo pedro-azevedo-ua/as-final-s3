@@ -2,13 +2,13 @@ groups:
   - name: RabbitMQ Alerts
     rules:
       - alert: HighDLQMessageCount
-        expr: rabbitmq_queue_messages{queue="cms.dlq"} > 10
-        for: 1m
+        expr: listener_messages_deadlettered_total > 10
+        for: 5s
         labels:
           severity: warning
         annotations:
           summary: "High DLQ Message Count"
-          description: "Dead Letter Queue (cms.dlq) has more than 10 messages for over 1 minute."
+          description: "Dead Letter Queue (cms.dlq) has more than 10 messages for over 5 seconds."
 
       - alert: QueueBacklog
         expr: rabbitmq_queue_messages_ready > 50
