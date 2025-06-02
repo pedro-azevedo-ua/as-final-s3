@@ -1,0 +1,964 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 1,
+    "links": [],
+    "panels": [
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "cennsqnjhdg5cf"
+            },
+            "description": "This dashboard monitors the total number of messages published, publish failures, and the overall success rate of message delivery. It helps track publisher reliability and identify potential issues affecting message throughput.\n\n",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "fieldMinMax": true,
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green"
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Ratio between published and failure messages"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "percent"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 9,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
+            "id": 1,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "horizontal",
+                "percentChangeColorMode": "same_as_value",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "pluginVersion": "11.6.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "100 * sum((publisher_messages_published_total))\r\n/\r\n(\r\n  sum((publisher_messages_published_total)) + sum((publisher_publish_failures_total))\r\n)",
+                    "legendFormat": "Ratio between published and failure messages",
+                    "range": true,
+                    "refId": "A"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "publisher_messages_published_total",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "Publisher Messages Published",
+                    "range": true,
+                    "refId": "B"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "publisher_publish_failures_total",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "Publisher Messages Failures",
+                    "range": true,
+                    "refId": "C"
+                }
+            ],
+            "title": "Publisher Message Delivery Metrics (PiranhaEventPublisher Metrics",
+            "transparent": true,
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "cennsqnjhdg5cf"
+            },
+            "description": "All type os messages recebed \n\n✅ Acked\n❌ Nacked\n📦 Dead-lettered\n🧾 Invalid JSON\n🔐 Invalid Signature\n📜 Invalid Schema",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green"
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 9,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
+            "id": 2,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.6.1",
+            "targets": [
+                {
+                    "editorMode": "code",
+                    "expr": "listener_messages_acked_total",
+                    "legendFormat": "Total Acked Messages",
+                    "range": true,
+                    "refId": "A"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "listener_messages_nacked_total",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "Total Nacked Messages",
+                    "range": true,
+                    "refId": "B"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "listener_messages_deadlettered_total",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "Total Dead Lettered Messages",
+                    "range": true,
+                    "refId": "C"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "listener_messages_invalid_json_total",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "Total Invalid JSON Messages",
+                    "range": true,
+                    "refId": "D"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "listener_messages_invalid_signature_total",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "Total Invalid Signature Messages",
+                    "range": true,
+                    "refId": "E"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "listener_messages_schema_invalid_total",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "Total Schema Invalid Messages",
+                    "range": true,
+                    "refId": "F"
+                }
+            ],
+            "title": "Recebed Messages (ExternelEventListenerService Metrics))",
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "cennsqnjhdg5cf"
+            },
+            "description": "Percentages of invalid messages in relation to messages received\n\nTypes of Messages:\n\nInvalid JSON Messages\nInvalid Signatures Messages\nInvalid Schema Messages",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green"
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 50
+                            },
+                            {
+                                "color": "dark-red",
+                                "value": 75
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "% of Invalid JSON Messages"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": []
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 6,
+                "w": 24,
+                "x": 0,
+                "y": 9
+            },
+            "id": 4,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "pluginVersion": "11.6.1",
+            "targets": [
+                {
+                    "editorMode": "code",
+                    "expr": "100 * sum(listener_messages_invalid_json_total) / sum(listener_messages_received_total)",
+                    "legendFormat": "% of Invalid JSON Messages",
+                    "range": true,
+                    "refId": "A"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "100 * sum(listener_messages_invalid_signature_total) / sum(listener_messages_received_total)",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "% of Invalid Signature Messages ",
+                    "range": true,
+                    "refId": "B"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "100 * sum(listener_messages_schema_invalid_total) / sum(listener_messages_received_total)",
+                    "format": "time_series",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "% of Invalid Schema Messages",
+                    "range": true,
+                    "refId": "C"
+                }
+            ],
+            "title": "Percentage of invalid messages (ExternalEventListenerService Metrics)",
+            "transparent": true,
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "cennsqnjhdg5cf"
+            },
+            "description": "Ratio between all received messages and all acked messages\n",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "dark-red"
+                            },
+                            {
+                                "color": "#EAB839",
+                                "value": 25
+                            },
+                            {
+                                "color": "dark-green",
+                                "value": 50
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 7,
+                "w": 12,
+                "x": 0,
+                "y": 15
+            },
+            "id": 3,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "pluginVersion": "11.6.1",
+            "targets": [
+                {
+                    "editorMode": "code",
+                    "expr": "100 * sum(listener_messages_acked_total)\r\n/\r\n(sum(listener_messages_received_total) + 1e-9)",
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "title": "Processing success rate (ExternalEventListeningService Metrics)",
+            "transparent": true,
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "cennsqnjhdg5cf"
+            },
+            "description": "Average Message processing time (ExternelEventListenerService)",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 0,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green"
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 7,
+                "w": 12,
+                "x": 12,
+                "y": 15
+            },
+            "id": 5,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.6.1",
+            "targets": [
+                {
+                    "editorMode": "code",
+                    "expr": "rate(listener_message_processing_duration_seconds_sum[100m]) \r\n/ \r\nrate(listener_message_processing_duration_seconds_count[100m])",
+                    "legendFormat": "Average processing time",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "title": "Average Message processing time (ExternelEventListenerService Metrics)",
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "cennsqnjhdg5cf"
+            },
+            "description": "Events processed by type (ExternalEventListener Metrics)",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": []
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "listener_events_processed_total {__name__=\"listener_events_processed_total\", event_type=\"page.create.request\", instance=\"host.docker.internal:5000\", job=\"piranha_app\"}"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "Create Request"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "listener_events_processed_total {__name__=\"listener_events_processed_total\", event_type=\"page.delete.request\", instance=\"host.docker.internal:5000\", job=\"piranha_app\"}"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "Delete Request"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 22
+            },
+            "id": 6,
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "pieType": "pie",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.6.1",
+            "targets": [
+                {
+                    "editorMode": "code",
+                    "expr": "listener_events_processed_total",
+                    "legendFormat": "{{label_name}}",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "title": "Events processed by type (ExternalEventListener Metrics)",
+            "transparent": true,
+            "type": "piechart"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "cennsqnjhdg5cf"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "fieldMinMax": false,
+                    "mappings": [
+                        {
+                            "options": {
+                                "0": {
+                                    "color": "dark-red",
+                                    "index": 1,
+                                    "text": "Inactive"
+                                },
+                                "1": {
+                                    "color": "green",
+                                    "index": 0,
+                                    "text": "Active"
+                                }
+                            },
+                            "type": "value"
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green"
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 22
+            },
+            "id": 7,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "pluginVersion": "11.6.1",
+            "targets": [
+                {
+                    "editorMode": "code",
+                    "expr": "listener_consumer_active",
+                    "legendFormat": "RabbitMQ State",
+                    "range": true,
+                    "refId": "A"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "rabbitmq_connections",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "RabbitMQ Connections",
+                    "range": true,
+                    "refId": "B"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "rabbitmq_channels",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "RabbitMQ Channels",
+                    "range": true,
+                    "refId": "C"
+                }
+            ],
+            "title": "RabbitMQ System Health (RabbitMQ Metrics)",
+            "transparent": true,
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "cennsqnjhdg5cf"
+            },
+            "description": "Page Actions Dashboard to  show the request from the Page API Controller (Outbound event messaging)",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": []
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 30
+            },
+            "id": 8,
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "pieType": "pie",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "11.6.1",
+            "targets": [
+                {
+                    "editorMode": "code",
+                    "expr": "page_save_requests_total",
+                    "legendFormat": "New Content Request",
+                    "range": true,
+                    "refId": "A"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "page_save_draft_requests_total",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "Save Draft Request",
+                    "range": true,
+                    "refId": "B"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "page_delete_requests_total",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "Delete Request",
+                    "range": true,
+                    "refId": "C"
+                }
+            ],
+            "title": " Page Actions Dashboard (API Controller Metrics)",
+            "transparent": true,
+            "type": "piechart"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "cennsqnjhdg5cf"
+            },
+            "description": "Publication Dashboard with Success Rate for every type os request",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "fieldMinMax": false,
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "percentage",
+                        "steps": [
+                            {
+                                "color": "dark-red"
+                            },
+                            {
+                                "color": "#EAB839",
+                                "value": 50
+                            },
+                            {
+                                "color": "green",
+                                "value": 75
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Value"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "percent"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 6,
+                "w": 24,
+                "x": 0,
+                "y": 38
+            },
+            "id": 9,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "pluginVersion": "11.6.1",
+            "targets": [
+                {
+                    "editorMode": "code",
+                    "expr": "100 * sum(page_save_draft_publish_success_total)\r\n/\r\n(sum(page_save_draft_publish_success_total) + sum(page_save_draft_publish_failure_total))",
+                    "legendFormat": "% of Sucess (Update Request)",
+                    "range": true,
+                    "refId": "A"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "100 * sum(page_save_publish_success_total)\r\n/\r\n(sum(page_save_publish_success_total) + sum(page_save_publish_failure_total))",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "% of Sucess (New Content Request)",
+                    "range": true,
+                    "refId": "B"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "cennsqnjhdg5cf"
+                    },
+                    "editorMode": "code",
+                    "expr": "100 * sum(page_delete_event_success_total)\r\n/\r\n(sum(page_delete_event_success_total) + sum(page_delete_event_failure_total))\r\n",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "% of Sucess (Delete Request)",
+                    "range": true,
+                    "refId": "C"
+                }
+            ],
+            "title": "Publication Dashboard with Success Rate (PageAPIController Metrics)",
+            "transparent": true,
+            "type": "gauge"
+        }
+    ],
+    "preload": false,
+    "schemaVersion": 41,
+    "tags": [],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-30m",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "AS Piranha Metrics",
+    "uid": "eennz1n0nwmbkc",
+    "version": 25
+}
