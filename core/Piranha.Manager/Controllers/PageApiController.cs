@@ -87,9 +87,13 @@ public class PageApiController : Controller
     /// <summary>
     /// Default constructor.
     /// </summary>
-    public PageApiController(PageService service, IApi api, ManagerLocalizer localizer, IHubContext<Hubs.PreviewHub> hub, IAuthorizationService auth,
-         ILogger<PageApiController> systemLogger,
-         IPiranhaEventPublisher eventPublisher,
+    public PageApiController(PageService service,
+        IApi api,
+        ManagerLocalizer localizer,
+        IHubContext<Hubs.PreviewHub> hub,
+        IAuthorizationService auth,
+        ILogger<PageApiController> systemLogger,
+        IPiranhaEventPublisher eventPublisher,
         ILoggerFactory loggerFactory, IConfiguration config)
     {
         _service = service;
@@ -323,7 +327,8 @@ public class PageApiController : Controller
                     var signingKey = _config["Security:MessageSigningKey"];
                     secureEvent.Signature = MessageSecurityHelper.ComputeHmacSignature(secureEvent, signingKey);
 
-                    string routingKey = _config["RabbitMQ:PublishRoutingKey"]; ;
+                    string routingKey = _config["RabbitMQ:PublishRoutingKey"];
+                    Console.WriteLine($"Publishing event with routing key: {routingKey}");
                     await _eventPublisher.PublishAsync(secureEvent, routingKey);
 
                     PublishSuccess.Inc();

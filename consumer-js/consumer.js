@@ -10,7 +10,7 @@ const config = {
     vhost: '/',
     exchange: 'cms.events',
     exchangeType: 'topic',
-    queue: 'cms.requests.processor',
+    queue: 'cms.event.notifications',
     routingKeys: [
         "page.published",
         "page.deleted",

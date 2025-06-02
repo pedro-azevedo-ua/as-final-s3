@@ -73,6 +73,7 @@ namespace ContentsRUs.Eventing.Publisher
             };
 
             _publisherLogger.LogInformation("Publishing event to exchange '{Exchange}' with routing key '{RoutingKey}'", _exchange, routingKey);
+            Console.WriteLine($"Publishing event to exchange '{_exchange}' with routing key '{routingKey}'");
             try
             {
                 await _channel.BasicPublishAsync(_exchange, routingKey, true, props, body);
