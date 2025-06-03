@@ -348,3 +348,18 @@ Improved serilog to have files for publishing, listening and dead letter queues
       - Create dashboards
       - Import public dashboards
       - Visualize metrics, like: ``http_requests_total``, ``dotnet_gc_collection_count``, etc
+
+### 4.X Optional: Swagger/OpenAPI docs for new endpoints
+
+  - Updated ``Program.cs`` to add Swashbuckle (Swagger) services and middleware for API documentation:
+    - Registered Swagger generator with ``builder.Services.AddSwaggerGen(...)``
+    - Configured Swagger UI middleware with ``app.UseSwagger()`` and ``app.UseSwaggerUI()``
+    - Added ``MetricsDocumentFilter`` to enrich the Swagger document with ``/metrics`` and endpoint.
+  - Implemented a custom Swagger Document Filter (``MetricsDocumentFilter``) to manually add the ``/metrics`` endpoint to the OpenAPI spec
+  - This was necessary because the ``/metrics`` endpoint is served by Prometheus middleware outside of the MVC pipeline and is not automatically detected by Swagger
+  - Added XML comments and descriptions for both endpoints to improve API documentation quality
+
+  - How to access:
+    - Run the application default on port 5000
+    - Navigate to ```http://localhost:5000/swagger`` in the browser
+    - The Swagger UI shows all documented endpoints, including the custom ``/metrics``
