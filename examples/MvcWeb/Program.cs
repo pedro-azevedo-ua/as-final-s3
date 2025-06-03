@@ -12,6 +12,8 @@ using MvcWeb.Services;
 using Serilog;
 using Serilog.Context;
 using ContentRUs.Eventing.Listener.BackgroundServices;
+using Swashbuckle.AspNetCore.SwaggerGen;
+using Microsoft.OpenApi.Models;
 
 using Prometheus;
 
@@ -77,6 +79,13 @@ builder.Services.AddHostedService<PiranhaPublisherInitializer>();
 builder.Services.AddHostedService<ExternalEventListenerService>();
 builder.Services.AddHostedService<DlqConsumerHostedService>();
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "My API", Version = "v1" });
+    c.DocumentFilter<MetricsDocumentFilter>();
+});
+
 
 
 //builder.Services.AddSingleton<IHostedService>(sp => new ExternalEventListenerService(
@@ -104,6 +113,7 @@ app.Use(async (context, next) =>
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
+
 }
 
 // Add the middleware to collect Prometheus metrics
@@ -135,5 +145,12 @@ app.UseEndpoints(endpoints =>
 {
     endpoints.MapMetrics();
 });
+
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+});
+
 
 app.Run();
