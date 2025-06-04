@@ -98,10 +98,8 @@ namespace ContentRUs.Eventing.Listener.BackgroundServices
             string timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff");
             string filename = Path.Combine(_outputDir, $"dlq-msg-{timestamp}-{ea.DeliveryTag}.json");
 
-            // Log to dedicated DLQ log file via Serilog
             _dlqLogger.LogWarning("DLQ Message: {Info}", JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true }));
 
-            // (Optional) Still save per-message file if you want
             await File.WriteAllTextAsync(filename, JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true }));
 
             await _channel.BasicAckAsync(ea.DeliveryTag, false);

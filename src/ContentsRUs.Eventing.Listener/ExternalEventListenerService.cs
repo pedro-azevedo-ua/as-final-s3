@@ -122,7 +122,7 @@ namespace ContentsRUs.Eventing.Listener
         public ExternalEventListenerService(
         IServiceProvider serviceProvider,
             IConfiguration config,
-            ILoggerFactory loggerFactory // <-- Change: inject ILoggerFactory instead of ILogger<ExternalEventListenerService>
+            ILoggerFactory loggerFactory 
         )
         {
             _serviceProvider = serviceProvider;
@@ -145,12 +145,12 @@ namespace ContentsRUs.Eventing.Listener
             try
             {
 
-                // 1) Connect
+                // connect
                 _connection = await _factory.CreateConnectionAsync(cancellationToken);
                 _channel = await _connection.CreateChannelAsync();
                 RabbitMqConnections.Inc();
 
-                // 2) Declare the �normal� exchange
+                // declare the normal exchange
                 var reqEx = _config["RabbitMQ:RequestsExchange"] ?? "cms.requests";
                 await _channel.ExchangeDeclareAsync(
                     exchange: reqEx,
@@ -158,19 +158,18 @@ namespace ContentsRUs.Eventing.Listener
                     durable: true,
                     autoDelete: false);
 
-                // 3) Declare the DLX (dead-letter exchange) and DLQ
+                // declare the  dead-letter exchange and DLQ
                 var dlxName = _config["RabbitMQ:DeadLetterExchange"] ?? "cms.dlx";
                 var dlqName = _config["RabbitMQ:DeadLetterQueue"] ?? "cms.dlq";
                 var dlqRouting = _config["RabbitMQ:DeadLetterRoutingKey"] ?? "dlq";
 
-                // DLX can be direct, topic, fanout�use whatever fits. Here we use direct.
                 await _channel.ExchangeDeclareAsync(
                     exchange: dlxName,
                     type: ExchangeType.Direct,
                     durable: true,
                     autoDelete: false);
 
-                // Declare the DLQ queue & bind it to the DLX
+                // declare the DLQ queue & bind it to the DLX
                 await _channel.QueueDeclareAsync(
                     queue: dlqName,
                     durable: true,
@@ -181,7 +180,6 @@ namespace ContentsRUs.Eventing.Listener
                     exchange: dlxName,
                     routingKey: dlqRouting);
 
-                // 4) Declare your �requests� queue WITH dead-letter pointers
                 var queueArgs = new Dictionary<string, object>
             {
                 { "x-dead-letter-exchange",    dlxName    },
@@ -200,7 +198,6 @@ namespace ContentsRUs.Eventing.Listener
                     exchange: reqEx,
                     routingKey: _config["RabbitMQ:RequestRoutingKey"] ?? "page.*.request");
 
-                // 5) Start consuming
                 _consumer = new AsyncEventingBasicConsumer(_channel);
                 _consumer.ReceivedAsync += OnMessageReceivedAsync;
                 await _channel.BasicConsumeAsync(
@@ -264,7 +261,7 @@ namespace ContentsRUs.Eventing.Listener
                         secureEvent.Id, secureEvent.HashedUserId, routingKey);
 
                     MessagesInvalidSignature.Inc();
-                    await _channel.BasicNackAsync(ea.DeliveryTag, false, false); // <-- Nack, not Ack
+                    await _channel.BasicNackAsync(ea.DeliveryTag, false, false); 
                     MessagesDeadLettered.Inc();
                     MessagesNacked.Inc();
                     timer.ObserveDuration();
@@ -275,7 +272,7 @@ namespace ContentsRUs.Eventing.Listener
             {
                 _listenerLogger.LogError(ex, "Exception during signature verification");
                 MessagesInvalidSignature.Inc();
-                await _channel.BasicNackAsync(ea.DeliveryTag, false, false); // <-- Nack, not Ack
+                await _channel.BasicNackAsync(ea.DeliveryTag, false, false); 
                 MessagesDeadLettered.Inc();
                 MessagesNacked.Inc();
                 timer.ObserveDuration();
@@ -289,7 +286,7 @@ namespace ContentsRUs.Eventing.Listener
                     validationError, secureEvent?.Id, routingKey);
 
                 MessagesSchemaInvalid.Inc();
-                await _channel.BasicNackAsync(ea.DeliveryTag, false, false); // <-- Nack, not Ack
+                await _channel.BasicNackAsync(ea.DeliveryTag, false, false); 
                 MessagesDeadLettered.Inc();
                 MessagesNacked.Inc();
                 timer.ObserveDuration();
@@ -302,7 +299,7 @@ namespace ContentsRUs.Eventing.Listener
 
             // All checks passed, process the event
             await ProcessSecureContentEventAsync(secureEvent, routingKey);
-            await _channel.BasicAckAsync(ea.DeliveryTag, false); // Only ack here!
+            await _channel.BasicAckAsync(ea.DeliveryTag, false); 
             MessagesAcked.Inc();
 
             timer.ObserveDuration();
@@ -366,8 +363,7 @@ namespace ContentsRUs.Eventing.Listener
             ContentCreateAttempts.Inc();
             var timer = ContentCreateDuration.NewTimer();
 
-            // 1. Ensure your page type exists in Piranha (e.g., "StandardPage")
-            //    You can pass content.Type if it's set correctly in your message.
+
             if (string.IsNullOrWhiteSpace(content.Type))
             {
                 _listenerLogger.LogInformation("Content type is missing. Cannot create page.");
@@ -388,7 +384,7 @@ namespace ContentsRUs.Eventing.Listener
                     page.Title = content.Title;
                     page.Slug = content.Slug;
 
-                    // Set SiteId (required)
+            
                     var sites = await api.Sites.GetAllAsync();
                     var defaultSite = sites.FirstOrDefault();
                     if (defaultSite == null)
@@ -400,8 +396,7 @@ namespace ContentsRUs.Eventing.Listener
 
                     page.SiteId = defaultSite.Id;
 
-                    // Optionally set ParentId if you want a child page
-                    // page.ParentId = ...;
+
 
                     page.Published = DateTime.UtcNow;
                     await api.Pages.SaveAsync(page);
@@ -437,10 +432,8 @@ namespace ContentsRUs.Eventing.Listener
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var api = scope.ServiceProvider.GetRequiredService<IApi>();
-                    // Get all pages (optionally, you can filter by site or parent if needed)
                     var pages = await api.Pages.GetAllAsync();
 
-                    // Find the page with the exact matching title
                     var page = pages.FirstOrDefault(p => string.Equals(p.Title, title, StringComparison.OrdinalIgnoreCase));
 
                     if (page == null)
@@ -465,7 +458,6 @@ namespace ContentsRUs.Eventing.Listener
             }
         }
 
-        // Implement other handlers similarly
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
@@ -473,13 +465,11 @@ namespace ContentsRUs.Eventing.Listener
 
             try
             {
-                // Remove the event handler
                 if (_consumer != null)
                 {
                     _consumer.ReceivedAsync -= OnMessageReceivedAsync;
                 }
 
-                // Close channel and connection gracefully
                 await _channel?.CloseAsync();
                 await _connection?.CloseAsync();
             }
@@ -491,7 +481,6 @@ namespace ContentsRUs.Eventing.Listener
 
         public void Dispose()
         {
-            // Clean up resources
             try
             {
                 _channel?.Dispose();
@@ -499,7 +488,6 @@ namespace ContentsRUs.Eventing.Listener
             }
             catch (Exception ex)
             {
-                // Just log, don't throw from Dispose
                 _listenerLogger?.LogError(ex, "Error disposing External Event Listener Service");
             }
         }

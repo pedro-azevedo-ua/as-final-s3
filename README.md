@@ -1,18 +1,31 @@
+
+
+# University of Aveiro - Software Architecture - Scenario 3
+
+To run the project:
+
+1 - `cd RabbitMQ` 
+2 - build compose - `docker compose -f docker-compose.yml up -d`
+3 - Move to project directory - `cd ./examples/MvcWeb` 
+4 - Run - `dotnet run --framework net8.0`
+5 - Run js apps - `cd ./js-apps`
+6 - `npm run startConsuming` or `npm run startProducer`
+
 # Welcome to Piranha.Core
 
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/0fa7c8bcd5234443b79b075436e92d7e)](https://www.codacy.com/gh/PiranhaCMS/piranha.core/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=PiranhaCMS/piranha.core&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/0fa7c8bcd5234443b79b075436e92d7e)](https://www.codacy.com/gh/PiranhaCMS/piranha.core/dashboard?utm_source=github.com&utm_medium=referral&utm_content=PiranhaCMS/piranha.core&utm_campaign=Badge_Grade)
 [![CodeFactor](https://www.codefactor.io/repository/github/piranhacms/piranha.core/badge)](https://www.codefactor.io/repository/github/piranhacms/piranha.core)
 [![Sponsors](https://opencollective.com/piranhacms/tiers/sponsor/badge.svg?label=sponsor&color=brightgreen)](Sponsors)
 [![Backers](https://opencollective.com/piranhacms/tiers/backer/badge.svg?label=backer&color=brightgreen)](Backers)
 [![Gitter chat](https://badges.gitter.im/PiranhaCMS/Piranha.png)](https://gitter.im/PiranhaCMS/Piranha)
 
-| Build server           | Platform     | Build status |
-|------------------------|--------------|--------------|
-| GitHub Actions         | Windows      | [![.NET Win](https://github.com/PiranhaCMS/piranha.core/actions/workflows/dotnet_win.yml/badge.svg)](https://github.com/PiranhaCMS/piranha.core/actions/workflows/dotnet_win.yml) |
-| GitHub Actions         | Linux        | [![.NET](https://github.com/PiranhaCMS/piranha.core/actions/workflows/dotnet.yml/badge.svg)](https://github.com/PiranhaCMS/piranha.core/actions/workflows/dotnet.yml) |
-| CoverAlls              |              | [![Coverage Status](https://coveralls.io/repos/github/PiranhaCMS/piranha.core/badge.svg?branch=master&service=github&random=1)](https://coveralls.io/github/PiranhaCMS/piranha.core?branch=master) |
-| NuGet                  |              | [![NuGet](https://img.shields.io/nuget/v/Piranha.svg)](https://www.nuget.org/packages/Piranha) |
-| Crowdin (Localization) |              | [![Crowdin](https://badges.crowdin.net/piranhacms/localized.svg)](https://crowdin.com/project/piranhacms) |
+| Build server           | Platform | Build status                                                                                                                                                                                  |
+| ---------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub Actions         | Windows  | [![.NET Win](https://github.com/PiranhaCMS/piranha.core/actions/workflows/dotnet_win.yml/badge.svg)](https://github.com/PiranhaCMS/piranha.core/actions/workflows/dotnet_win.yml)                  |
+| GitHub Actions         | Linux    | [![.NET](https://github.com/PiranhaCMS/piranha.core/actions/workflows/dotnet.yml/badge.svg)](https://github.com/PiranhaCMS/piranha.core/actions/workflows/dotnet.yml)                              |
+| CoverAlls              |          | [![Coverage Status](https://coveralls.io/repos/github/PiranhaCMS/piranha.core/badge.svg?branch=master&service=github&random=1)](https://coveralls.io/github/PiranhaCMS/piranha.core?branch=master) |
+| NuGet                  |          | [![NuGet](https://img.shields.io/nuget/v/Piranha.svg)](https://www.nuget.org/packages/Piranha)                                                                                                     |
+| Crowdin (Localization) |          | [![Crowdin](https://badges.crowdin.net/piranhacms/localized.svg)](https://crowdin.com/project/piranhacms)                                                                                          |
 
 ## About
 
@@ -29,9 +42,9 @@ Piranha CMS is a decoupled, cross-platform CMS built for `.NET8` and `Entity Fra
 
 To use our project templates you first need to download and install them from NuGet. This can be done with:
 
-~~~ bash
+```bash
 dotnet new install Piranha.Templates
-~~~
+```
 
 When creating a new project with `dotnet new` you should first create a new empty folder. The default behaviour is that the new project is **named after its containing folder**.
 
@@ -39,30 +52,30 @@ When creating a new project with `dotnet new` you should first create a new empt
 
 After this is done you can create a new web project for razor pages with:
 
-~~~ bash
+```bash
 dotnet new piranha.razor
-~~~
+```
 
 To read more about of our available project templates, please read more on https://piranhacms.org/docs/basics/project-templates
 
 ### Get the latest source code and get going
 
-~~~
+```
 > git clone https://github.com/PiranhaCMS/piranha.core.git
 > cd piranha.core
 > dotnet restore
 > dotnet build
 > cd examples/MvcWeb
 > dotnet run
-~~~
+```
 
 ### Log into the Manager
 
 The manager interface can be found at the URL `~/manager` with the default credentials:
 
-~~~
+```
 admin / password
-~~~
+```
 
 For production scenarios we advise you to remove this user, or change the password
 **and** update the password strength policy. More information on this can be found in
@@ -70,12 +83,12 @@ the [official documentation here](http://piranhacms.org/docs/architecture/authen
 
 ### Build and update javascript/css assets
 
-~~~
+```
 > cd piranha.core/core/Piranha.Manager
 > npm install
 > gulp min:js
 > gulp min:css
-~~~
+```
 
 ## Backers
 
