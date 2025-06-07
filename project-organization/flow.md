@@ -349,6 +349,86 @@ Improved serilog to have files for publishing, listening and dead letter queues
       - Import public dashboards
       - Visualize metrics, like: ``http_requests_total``, ``dotnet_gc_collection_count``, etc
 
+### 3.X Prometheus Alerts and Grafana Dashboards (Observability)
+
+To ensure robust observability in our system, we integrated **Prometheus** for monitoring and **Grafana** for visualization of metrics. This setup allows us to track performance, detect anomalies, and react promptly to failures.
+
+We used the `prometheus-net.AspNetCore` library to expose application metrics at the `/metrics` endpoint in Prometheus format.
+
+#### Metrics Implemented 
+
+ Message Processing
+
+- `listener_messages_received_total` – Total number of messages received from RabbitMQ.
+- `listener_messages_invalid_json_total` – Messages rejected due to invalid JSON.
+- `listener_messages_invalid_signature_total` – Messages rejected due to invalid signature.
+- `listener_messages_schema_invalid_total` – Messages rejected due to schema validation failure.
+- `listener_messages_acked_total` – Messages successfully acknowledged.
+- `listener_messages_nacked_total` – Messages negatively acknowledged.
+- `listener_message_processing_duration_seconds` – Duration of message processing.
+- `listener_messages_deadlettered_total` – Messages sent to the Dead Letter Queue (DLQ).
+
+Event Handling
+
+- `listener_events_processed_total` – Total events processed (labeled by event type).
+- `listener_events_failed_total` – Total failed events (labeled by event type).
+- `listener_event_processing_duration_seconds` – Duration of event processing (labeled by event type).
+
+Content Operations
+
+- `listener_content_create_attempts_total` – Number of content creation attempts.
+- `listener_content_create_failures_total` – Number of content creation failures.
+- `listener_content_create_duration_seconds` – Time taken for content creation.
+- `listener_content_delete_attempts_total` – Number of content deletion attempts.
+- `listener_content_delete_failures_total` – Number of content deletion failures.
+- `listener_content_delete_duration_seconds` – Time taken for content deletion.
+
+RabbitMQ Connectivity
+
+- `listener_rabbitmq_connections_total` – Successful connections to RabbitMQ.
+- `listener_rabbitmq_setup_failures_total` – Setup failures (labeled by step).
+- `listener_consumer_active` – Indicates if the consumer is active (gauge metric).
+
+Publisher Metrics
+
+- `publisher_messages_published_total` – Total number of messages successfully published.
+- `publisher_publish_failures_total` – Total number of failed message publications.
+
+These metrics provide insight into both internal performance and external system interactions.
+
+#### Grafana Dashboards
+
+Grafana was used to visualize Prometheus metrics through custom dashboards, enabling us to:
+
+- Publisher statistics (success/failure counts and ratios).
+- Message flow: received, acknowledged, rejected, and dead-lettered.
+- Event types processed by the listener and the publisher (e.g., content creation).
+- Listener Statistics Dashboard (e.g., percentage of invalid messages, processing success rate or average processing time).
+- RabbitMQ health indicators and consumer activity.
+- API-triggered events (e.g., page save or delete actions).
+
+
+#### Prometheus Alerts
+
+As part of the monitoring infrastructure, several **Prometheus alerts** were defined to ensure the reliability and performance of the RabbitMQ messaging system. These alerts are configured in [`Observability/alerts.rules.yml`](Observability/alerts.rules.yml) and focus on key indicators of system health:
+
+### 🔔 Defined Alerts
+
+- **HighDLQMessageCount**
+  - **Condition:** More than 10 messages in the Dead Letter Queue (DLQ) for over 5 seconds.
+  - **Purpose:** Detects potential issues in message processing that result in frequent DLQ usage.
+
+- **QueueBacklog**
+  - **Condition:** More than 50 unprocessed messages remain in a queue for over 2 minutes.
+  - **Purpose:** Highlights possible processing bottlenecks or consumer lag.
+
+- **RabbitMQNodeDown**
+  - **Condition:** RabbitMQ node is unreachable for more than 30 seconds.
+  - **Purpose:** Indicates potential RabbitMQ outages or network failures.
+
+These alerts help ensure **early detection** of failures and support rapid **issue resolution** to maintain system stability and performance.
+
+
 ### 4.X Optional: Swagger/OpenAPI docs for new endpoints
 
   - Updated ``Program.cs`` to add Swashbuckle (Swagger) services and middleware for API documentation:
